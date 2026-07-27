@@ -20,7 +20,6 @@ class CacaoModelService {
   Interpreter? _interpreter;
   bool _isLoaded = false;
 
-  // 1. Separate the labels to match the multi-task outputs
   static const diseaseLabels = [
     "black_pod_disease",
     "cacao_pod_borer",
@@ -44,7 +43,7 @@ class CacaoModelService {
       debugPrint("Loading TFLite model...");
 
       _interpreter = await Interpreter.fromAsset(
-        'assets/models/final_ft_model1.4.tflite',
+        'assets/models/final_ft_model1.6.tflite',
         options: InterpreterOptions()..threads = Platform.numberOfProcessors,
       );
 
