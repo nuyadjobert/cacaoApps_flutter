@@ -24,6 +24,7 @@ class ScannerController extends ChangeNotifier {
       _camera != null &&
       _camera!.value.isInitialized &&
       CacaoModelService().isLoaded;
+
   Future<void> init() async {
     await Future.wait([
       CacaoModelService().loadModel(),
@@ -81,7 +82,8 @@ class ScannerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<ScanResultModel>?> captureAndAnalyze() async {
+  // UPDATED: Added optional {Rect? cropRect} parameter
+  Future<List<ScanResultModel>?> captureAndAnalyze({Rect? cropRect}) async {
     if (!isReady) {
       debugPrint("===== Scanner Not Ready =====");
       debugPrint("Permission : $_isPermissionGranted");
@@ -108,8 +110,11 @@ class ScannerController extends ChangeNotifier {
       debugPrint("\n📸 [SCANNER] Picture taken at: $imagePath");
       debugPrint("🧠 [SCANNER] Sending to multi-task ML model...");
 
-      // Fetch predictions from the updated multi-task TFLite service
-      final predictions = await CacaoModelService().predict(imagePath);
+      // UPDATED: Forward cropRect to the prediction service
+      final predictions = await CacaoModelService().predict(
+        imagePath,
+        cropRect: cropRect,
+      );
 
       if (predictions.isEmpty) {
         debugPrint("⚠️ [SCANNER] No predictions returned from the model.");
@@ -118,13 +123,11 @@ class ScannerController extends ChangeNotifier {
 
       // Convert ALL predictions into UI models AND log them
       final results = predictions.map((pred) {
-        // If it's healthy or non-cacao, we don't really need a severity.
         String finalSeverity =
             (pred.diseaseLabel == 'healthy' || pred.diseaseLabel == 'non_cacao')
-                ? 'Default'
+                ? 'N/A'
                 : _capitalize(pred.severityLabel);
 
-        // 🔍 DETAILED LOGGING FOR DEBUGGING
         debugPrint("================= SCAN RESULT =================");
         debugPrint(
             "🧪 RAW DISEASE  : ${pred.diseaseLabel} (${(pred.diseaseConfidence * 100).toStringAsFixed(2)}%)");

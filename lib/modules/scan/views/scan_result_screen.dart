@@ -5,12 +5,12 @@ import 'package:cacao_apps/modules/scan/views/location_picker_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../widgets/low_confidence_dialog.dart';
 import '../widgets/scan_result_header.dart';
 import '../widgets/diagnosis_section.dart';
 import '../widgets/location_status_banner.dart';
 import '../widgets/treatment_plan_section.dart';
 import '../widgets/scan_result_bottom_bar.dart';
+import 'scan_unsuccessful_screen.dart';
 
 class ScanResultScreen extends StatefulWidget {
   final List<ScanResultModel> results;
@@ -46,50 +46,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     controller.init().then((_) {
       if (!mounted) return;
 
-      if (controller.error == "NON_CACAO") {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text("Scan Unsuccessful"),
-            content: const Text(
-              "Please retake the scanning.\n\n"
-              "Before scanning:\n"
-              "✓ Scan only one cacao pod\n"
-              "✓ Keep the pod in the center\n"
-              "✓ Move closer to the pod\n"
-              "✓ Use good lighting\n",
-            ),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D6A4F),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop();
-                },
-                child: const Text("Retake Photo",
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ],
+      if (controller.error == "NON_CACAO" || controller.isNonCacao || "LOW_CONFIDENCE" == controller.error) {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+            pageBuilder: (context, animation1, animation2) => const ScanUnsuccessfulScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
           ),
-        );
-        return;
-      }
-
-      if (controller.error == "LOW_CONFIDENCE") {
-        LowConfidenceDialog.show(
-          context,
-          onRetake: () {
-            Navigator.of(context).pop(); // back to scanner
-          },
-        );
+      );
         return;
       }
 
@@ -238,25 +203,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    if (controller.error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.broken_image_rounded,
-                size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              controller.error == "LOW_CONFIDENCE"
-                  ? "Analysis blocked due to low confidence."
-                  : "An error occurred.",
-              style: const TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
-      );
-    }
-
     final primaryTitle = controller.displayName[lang] ?? controller.diseaseName;
   
     return SingleChildScrollView(
@@ -270,7 +216,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           const SizedBox(height: 16),
 
           _buildSectionHeader(
-            label: lang == "tl" ? "PANGUNAHING SURI" : "PRIMARY DIAGNOSIS",
+            label: lang == "tl" ? "PAGSUSURI" : "DIAGNOSIS",
             icon: Icons.gpp_maybe_rounded,
             color: const Color(0xFF2D6A4F),
           ),
