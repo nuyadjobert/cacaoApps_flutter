@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cacao_apps/modules/auth/login_factory.dart';
 import '../controllers/settings_controller.dart';
-import '../../history/controllers/history_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/model/user.model.dart';
 import '../widgets/profile_hero_card.dart';
@@ -22,14 +21,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsController _controller = SettingsController();
-  final HistoryController _historyController = HistoryController();
   LocalUser? currentUser;
 
   File? _profileImage;
 
-  int _overallScans = 0;
-  String _farmStatus = "Loading...";
-  int _diseasesScanned = 0;
 
   @override
   void initState() {
@@ -44,12 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadFarmStats() async {
-    final stats = await _historyController.getFarmStats();
     if (!mounted) return;
     setState(() {
-      _overallScans = stats['overallScans'];
-      _farmStatus = stats['farmStatus'];
-      _diseasesScanned = stats['diseasesScanned'];
+
     });
   }
 
