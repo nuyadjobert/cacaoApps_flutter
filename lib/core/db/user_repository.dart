@@ -1,5 +1,3 @@
-// File: lib/core/database/repositories/user_repository.dart
-
 import 'package:sqflite/sqflite.dart';
 import 'package:cacao_apps/core/model/user.model.dart';
 import './database_helper.dart';

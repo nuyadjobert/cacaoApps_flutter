@@ -7,7 +7,6 @@ import '../../history/controllers/history_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/model/user.model.dart';
 import '../widgets/profile_hero_card.dart';
-import '../widgets/stats_row.dart';
 import '../widgets/settings_section_label.dart';
 import '../widgets/account_settings.dart';
 import '../widgets/support_settings.dart';
@@ -123,15 +122,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     textSecondary: textSecondary,
                     currentUser: currentUser,
                     profileImage: _profileImage,
-                  ),
-                  const SizedBox(height: 12),
-                  StatsRow(
-                    cardBg: cardBg,
-                    textPrimary: textPrimary,
-                    textMuted: textMuted,
-                    overallScans: _overallScans,
-                    farmStatus: _farmStatus,
-                    diseasesScanned: _diseasesScanned,
                   ),
                 ],
               ),

@@ -38,7 +38,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       diseaseName: primary.diseaseName,
       confidence: primary.confidence,
       severity: primary.severity,
-
     );
 
     saveController = SaveScanController();
@@ -46,15 +45,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     controller.init().then((_) {
       if (!mounted) return;
 
-      if (controller.error == "NON_CACAO" || controller.isNonCacao || "LOW_CONFIDENCE" == controller.error) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-            pageBuilder: (context, animation1, animation2) => const ScanUnsuccessfulScreen(),
+      if (controller.error == "NON_CACAO" ||
+          controller.isNonCacao ||
+          "LOW_CONFIDENCE" == controller.error ||
+          controller.diseaseName == "unsupported_disease" ||
+          controller.hasInvalidSeverityMismatch) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation1, animation2) =>
+                const ScanUnsuccessfulScreen(),
             transitionDuration: Duration.zero,
             reverseTransitionDuration: Duration.zero,
           ),
-      );
+        );
         return;
       }
 
@@ -204,7 +208,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
 
     final primaryTitle = controller.displayName[lang] ?? controller.diseaseName;
-  
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
       child: Column(
@@ -214,7 +218,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             imagePath: controller.imagePath,
           ),
           const SizedBox(height: 16),
-
           _buildSectionHeader(
             label: lang == "tl" ? "PAGSUSURI" : "DIAGNOSIS",
             icon: Icons.gpp_maybe_rounded,
@@ -222,14 +225,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
           const SizedBox(height: 8),
           DiagnosisSection(
-            diseaseName:
-                primaryTitle,
+            diseaseName: primaryTitle,
             description: controller.description[lang] ?? "",
             severity: controller.severity,
             confidence: controller.confidence,
           ),
-
-  
           const SizedBox(height: 32),
           LocationStatusBanner(
             locationPicker: saveController.locationPicker,
@@ -237,7 +237,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             isDisabled: controller.isNonCacao,
           ),
           const SizedBox(height: 24),
-          TreatmentPlanSection(recommendations: controller.recommendations, lang: lang),
+          TreatmentPlanSection(
+              recommendations: controller.recommendations, lang: lang),
         ],
       ),
     );

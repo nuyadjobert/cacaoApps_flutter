@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-
 class LocationService {
   Future<Map<String, dynamic>?> getLocationSnapshot() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();

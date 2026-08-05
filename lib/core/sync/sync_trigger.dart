@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/network/client.dart';
-// 1. Point to the new Scan Repository
 import 'package:cacao_apps/core/db/scan_repository.dart';
 import 'package:cacao_apps/modules/scan/services/scan_sync_service.dart';
 
@@ -18,7 +17,7 @@ class SyncTrigger {
   final ScanRepository _scanRepository = ScanRepository();
 
   SyncTrigger() {
-    // 3. Pass the repository into the sync service instead of the raw DB
+    // 3. Pass the repository into the sync service instead of the raw D
     _scanSync = ScanSyncService(dio: DioClient.dio, scanRepository: _scanRepository);
   }
 

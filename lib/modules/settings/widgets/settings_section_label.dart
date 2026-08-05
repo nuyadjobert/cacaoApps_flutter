@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Small uppercase label used above a group of settings rows
-/// (e.g. "ACCOUNT", "SUPPORT").
 class SettingsSectionLabel extends StatelessWidget {
   final String label;
   final Color textMuted;

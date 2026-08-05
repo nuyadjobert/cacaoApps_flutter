@@ -27,6 +27,7 @@ class CacaoModelService {
     "mealybug",
     "healthy",
     "non_cacao",
+    "unsupported_disease",
   ];
 
   static const severityLabels = [
@@ -44,10 +45,10 @@ class CacaoModelService {
       debugPrint("Loading TFLite model...");
 
       _interpreter = await Interpreter.fromAsset(
-        'assets/models/final_ft_model2.0.tflite',
+        'assets/models/final_ft_model2.5.tflite',
         options: InterpreterOptions()..threads = Platform.numberOfProcessors,
       );
-
+    //the 2.3 is good
       _isLoaded = true;
 
       for (int i = 0; i < _interpreter!.getOutputTensors().length; i++) {
@@ -78,7 +79,6 @@ class CacaoModelService {
     }
   }
 
-  // UPDATED: Added optional named parameter {Rect? cropRect}
   Future<List<MultiTaskPrediction>> predict(
     String imagePath, {
     Rect? cropRect,

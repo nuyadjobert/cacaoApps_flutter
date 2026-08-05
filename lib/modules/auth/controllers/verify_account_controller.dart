@@ -6,12 +6,12 @@ import 'package:cacao_apps/core/storage/token_storage.dart';
 import '../services/auth_services.dart';
 import '../models/verify_otp_result.dart';
 
+enum VerificationStatus { idle, verifying, success, failed }
 
 class VerifyAccountController extends ChangeNotifier {
   final AuthService _auth;
   final String email;
   final _secureStore = TokenStorage();
-
 
   final UserRepository _userRepository = UserRepository();
 
@@ -23,23 +23,20 @@ class VerifyAccountController extends ChangeNotifier {
     (_) => TextEditingController(),
   );
 
-  bool _isLoading = false;
-  String? _errorMessage;
+  VerificationStatus _verificationStatus = VerificationStatus.idle;
+  String _verificationMessage = '';
   VerifyOtpResult? _lastResult;
-  bool _isVerified = false;
-  bool get isVerified => _isVerified;
 
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  VerifyOtpResult? get lastResult => _lastResult;
+  VerificationStatus get verificationStatus => _verificationStatus;
+  String get verificationMessage => _verificationMessage;
 
-  void _setLoading(bool v) {
-    _isLoading = v;
-    notifyListeners();
-  }
-
-  void clearError() {
-    _errorMessage = null;
+  void resetVerification() {
+    _verificationStatus = VerificationStatus.idle;
+    _verificationMessage = '';
+    _lastResult = null;
+    for (final controller in otpControllers) {
+      controller.clear();
+    }
     notifyListeners();
   }
 
@@ -78,27 +75,26 @@ class VerifyAccountController extends ChangeNotifier {
   bool get isNewUserRequired => _lastResult?.status == 'NEW_USER_REQUIRED';
 
   Future<VerifyOtpResult?> verify() async {
-    clearError();
-
+    _verificationMessage = '';
     _lastResult = null;
-    _isVerified = false;
+    _verificationStatus = VerificationStatus.verifying;
+    notifyListeners();
+    await Future<void>.delayed(Duration.zero);
 
     if (!isOtpValid) {
-      _errorMessage = 'Please enter the 6-digit code.';
+      _verificationMessage = 'Please enter the 6-digit code.';
+      _verificationStatus = VerificationStatus.failed;
       notifyListeners();
       return null;
     }
-
-    _setLoading(true);
 
     try {
       final result = await _auth.verifyOtp(email: email, otp: otp);
 
       if (result.status != 'OK') {
         _lastResult = result;
-        _errorMessage = result.status == 'NEW_USER_REQUIRED'
-            ? null
-            : _mapStatusToMessage(result.status);
+        _verificationMessage = _mapStatusToMessage(result.status);
+        _verificationStatus = VerificationStatus.failed;
         notifyListeners();
         return result;
       }
@@ -107,13 +103,15 @@ class VerifyAccountController extends ChangeNotifier {
       final userId = result.userId;
 
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Missing token from server.';
+        _verificationMessage = 'Missing token from server.';
+        _verificationStatus = VerificationStatus.failed;
         notifyListeners();
         return result;
       }
 
       if (userId == null || userId.isEmpty) {
-        _errorMessage = 'Missing userId from server.';
+        _verificationMessage = 'Missing userId from server.';
+        _verificationStatus = VerificationStatus.failed;
         notifyListeners();
         return result;
       }
@@ -128,21 +126,23 @@ class VerifyAccountController extends ChangeNotifier {
           contactNumber: result.contactNumber ?? '',
         );
       } catch (e) {
-        _errorMessage = 'Failed to save user locally: $e';
+        _verificationMessage = 'Failed to save user locally: $e';
+        _verificationStatus = VerificationStatus.failed;
         notifyListeners();
         return null;
       }
       _lastResult = result;
-      _isVerified = true;
-      _errorMessage = null;
+      _verificationStatus = VerificationStatus.success;
+      _verificationMessage = '';
 
       notifyListeners();
       return result;
     } catch (e) {
-      _errorMessage = 'Unexpected error: $e';
+      final status = e.toString().replaceFirst('Exception: ', '');
+      _verificationMessage = _mapStatusToMessage(status);
+      _verificationStatus = VerificationStatus.failed;
+      notifyListeners();
       return null;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -152,7 +152,7 @@ class VerifyAccountController extends ChangeNotifier {
 
       startTimer(result.expiresInSeconds ?? 200);
     } catch (e) {
-      _errorMessage = e.toString();
+      _verificationMessage = e.toString();
       notifyListeners();
     }
   }

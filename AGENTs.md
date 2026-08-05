@@ -41,3 +41,4 @@ Always ensure:
 - No dead code remains.
 - No duplicate widgets or functions were introduced.
 - No existing modules are broken by the changes.
+- Reuse existing code.

@@ -2,9 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/model/user.model.dart';
 import '../../../theme/app_theme.dart';
-
-/// Pinned hero card at the top of the Settings screen: avatar, name,
-/// address, and the "Verified farmer" badge.
 class ProfileHeroCard extends StatelessWidget {
   final Color cardBg;
   final Color textPrimary;
@@ -71,30 +68,7 @@ class ProfileHeroCard extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.green.withAlpha(30),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.verified_rounded,
-                    size: 14, color: Colors.green[700]),
-                const SizedBox(width: 6),
-                Text(
-                  "Verified farmer",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
+     
         ],
       ),
     );

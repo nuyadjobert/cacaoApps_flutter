@@ -267,4 +267,11 @@ class ScanResultController extends ChangeNotifier {
     debugPrint("FINAL RESULT: $results");
     return results;
   }
+
+  bool get hasInvalidSeverityMismatch {
+    bool isDisease = diseaseName != 'healthy' && diseaseName != 'non_cacao' && diseaseName != 'unsupported_disease';
+    bool isSeverityNone = severity.toLowerCase() == 'none';
+    
+    return isDisease && isSeverityNone;
+  }
 }
