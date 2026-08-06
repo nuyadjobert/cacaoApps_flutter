@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:cacao_apps/core/ml/cacao_model_service.dart';
 import 'package:cacao_apps/modules/scan/model/scan_result_model.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:permission_handler/permission_handler.dart';
-
+import '../config/image_quality_config.dart';
+import '../model/image_quality_result.dart';
 class ScannerController extends ChangeNotifier {
   CameraController? _camera;
   List<CameraDescription>? _cameras;
@@ -15,6 +19,7 @@ class ScannerController extends ChangeNotifier {
 
   CameraController? get camera => _camera;
   CameraController? get cameraController => _camera;
+
   bool get isPermissionGranted => _isPermissionGranted;
   bool get isFlashOn => _isFlashOn;
   bool get isAnalyzing => _isAnalyzing;
@@ -45,6 +50,7 @@ class ScannerController extends ChangeNotifier {
     notifyListeners();
 
     _cameras = await availableCameras();
+
     if (_cameras == null || _cameras!.isEmpty) {
       _isPermissionGranted = false;
       notifyListeners();
@@ -58,6 +64,7 @@ class ScannerController extends ChangeNotifier {
     );
 
     await _camera!.initialize();
+
     notifyListeners();
   }
 
@@ -71,6 +78,7 @@ class ScannerController extends ChangeNotifier {
     }
 
     _isFlashOn = !_isFlashOn;
+
     notifyListeners();
   }
 
@@ -78,22 +86,22 @@ class ScannerController extends ChangeNotifier {
     if (_camera == null || !_isFlashOn) return;
 
     await _camera!.setFlashMode(FlashMode.off);
+
     _isFlashOn = false;
+
     notifyListeners();
   }
 
-  // UPDATED: Added optional {Rect? cropRect} parameter
-  Future<List<ScanResultModel>?> captureAndAnalyze({Rect? cropRect}) async {
+  Future<List<ScanResultModel>?> captureAndAnalyze({
+    Rect? cropRect,
+  }) async {
     if (!isReady) {
-      debugPrint("===== Scanner Not Ready =====");
-      debugPrint("Permission : $_isPermissionGranted");
-      debugPrint("Camera     : ${_camera != null}");
-      debugPrint("Initialized: ${_camera?.value.isInitialized}");
-      debugPrint("Model      : ${CacaoModelService().isLoaded}");
-      debugPrint("=============================");
       return null;
     }
-    if (_isAnalyzing) return null;
+
+    if (_isAnalyzing) {
+      return null;
+    }
 
     HapticFeedback.heavyImpact();
 
@@ -101,60 +109,231 @@ class ScannerController extends ChangeNotifier {
     notifyListeners();
 
     try {
+
       final XFile photo = await _camera!.takePicture();
 
       await turnOffFlash();
-
       final imagePath = photo.path;
+      final quality = await checkImageQuality(imagePath);
+    
+      if (!quality.isValid) {
+        return [
+          ScanResultModel(
+            imagePath: imagePath,
+            diseaseName: 'Rescan Required',
+            confidence: 0,
+            severity: quality.reason ?? 'Poor image quality',
+          ),
+        ];
+      }
 
-      debugPrint("\n📸 [SCANNER] Picture taken at: $imagePath");
-      debugPrint("🧠 [SCANNER] Sending to multi-task ML model...");
-
-      // UPDATED: Forward cropRect to the prediction service
       final predictions = await CacaoModelService().predict(
         imagePath,
         cropRect: cropRect,
       );
 
       if (predictions.isEmpty) {
-        debugPrint("⚠️ [SCANNER] No predictions returned from the model.");
         return null;
       }
 
-      // Convert ALL predictions into UI models AND log them
       final results = predictions.map((pred) {
-        String finalSeverity =
-            (pred.diseaseLabel == 'healthy' || pred.diseaseLabel == 'non_cacao')
+        final String finalSeverity =
+            pred.diseaseLabel == 'healthy' ||
+                    pred.diseaseLabel == 'non_cacao'
                 ? 'N/A'
                 : _capitalize(pred.severityLabel);
 
-        debugPrint("================= SCAN RESULT =================");
+        debugPrint('');
+        debugPrint('================ SCAN RESULT ================');
+
         debugPrint(
-            "🧪 RAW DISEASE  : ${pred.diseaseLabel} (${(pred.diseaseConfidence * 100).toStringAsFixed(2)}%)");
+          '🧪 RAW DISEASE  : '
+          '${pred.diseaseLabel} '
+          '(${(pred.diseaseConfidence * 100).toStringAsFixed(2)}%)',
+        );
+
         debugPrint(
-            "🧪 RAW SEVERITY : ${pred.severityLabel} (${(pred.severityConfidence * 100).toStringAsFixed(2)}%)");
-        debugPrint("📱 UI DISEASE   : ${_toDisplayName(pred.diseaseLabel)}");
-        debugPrint("📱 UI SEVERITY  : $finalSeverity");
-        debugPrint("===============================================\n");
+          '🧪 RAW SEVERITY : '
+          '${pred.severityLabel} '
+          '(${(pred.severityConfidence * 100).toStringAsFixed(2)}%)',
+        );
+
+        debugPrint(
+          '📱 UI DISEASE   : ${_toDisplayName(pred.diseaseLabel)}',
+        );
+
+        debugPrint(
+          '📱 UI SEVERITY  : $finalSeverity',
+        );
+
+        debugPrint('=============================================');
 
         return ScanResultModel(
           imagePath: imagePath,
-          diseaseName: _toDisplayName(pred.diseaseLabel),
+          diseaseName: _toDisplayName(
+            pred.diseaseLabel,
+          ),
           confidence: pred.diseaseConfidence,
           severity: finalSeverity,
         );
       }).toList();
 
       return results;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint("❌ [SCANNER] Error during capture and analyze: $e");
+        debugPrintStack(
+          stackTrace: stackTrace,
+        );
       }
+
       return null;
     } finally {
       _isAnalyzing = false;
       notifyListeners();
     }
+  }
+
+  Future<ImageQualityResult> checkImageQuality(
+    String imagePath,
+  ) async {
+    try {
+      final bytes = await File(
+        imagePath,
+      ).readAsBytes();
+
+      final image = img.decodeImage(
+        bytes,
+      );
+
+      if (image == null) {
+        return const ImageQualityResult(
+          isValid: false,
+          reason: ImageQualityConfig.messageInvalidImage,
+          brightness: 0,
+          sharpness: 0,
+        );
+      }
+
+      final resized = img.copyResize(
+        image,
+        width: 320,
+      );
+
+      double brightnessSum = 0;
+      int brightnessPixelCount = 0;
+
+      for (int y = 0; y < resized.height; y++) {
+        for (int x = 0; x < resized.width; x++) {
+          final pixel = resized.getPixel(
+            x,
+            y,
+          );
+
+          final double luminance = _gray(
+            pixel,
+          );
+
+          brightnessSum += luminance;
+          brightnessPixelCount++;
+        }
+      }
+
+      final double averageBrightness =
+          brightnessPixelCount > 0
+              ? brightnessSum / brightnessPixelCount
+              : 0;
+
+      double sharpnessSum = 0;
+      int edgeCount = 0;
+
+      for (int y = 1; y < resized.height - 1; y++) {
+        for (int x = 1; x < resized.width - 1; x++) {
+          final double current = _gray(
+            resized.getPixel(
+              x,
+              y,
+            ),
+          );
+
+          final double right = _gray(
+            resized.getPixel(
+              x + 1,
+              y,
+            ),
+          );
+
+          final double bottom = _gray(
+            resized.getPixel(
+              x,
+              y + 1,
+            ),
+          );
+
+          final double horizontalDifference =
+              (current - right).abs();
+
+          final double verticalDifference =
+              (current - bottom).abs();
+
+          sharpnessSum +=
+              horizontalDifference +
+              verticalDifference;
+
+          edgeCount++;
+        }
+      }
+
+      final double sharpness =
+          edgeCount > 0
+              ? sharpnessSum / edgeCount
+              : 0;
+
+      if (averageBrightness < ImageQualityConfig.minBrightness) {
+        return ImageQualityResult(
+          isValid: false,
+          reason: ImageQualityConfig.messageToDark,
+          brightness: averageBrightness,
+          sharpness: sharpness,
+        );
+      }
+
+      if (averageBrightness > ImageQualityConfig.maxBrightness) {
+        return ImageQualityResult(
+          isValid: false,
+          reason: ImageQualityConfig.messageTooBright,
+          brightness: averageBrightness,
+          sharpness: sharpness,
+        );
+      }
+
+      if (sharpness < ImageQualityConfig.minSharpness) {
+        return ImageQualityResult(
+          isValid: false,
+          reason: ImageQualityConfig.messageBlurry,
+          brightness: averageBrightness,
+          sharpness: sharpness,
+        );
+      }
+
+      return ImageQualityResult(
+        isValid: true,
+        brightness: averageBrightness,
+        sharpness: sharpness,
+      );
+    } catch (e) {
+      return const ImageQualityResult(
+        isValid: false,
+        reason: ImageQualityConfig.messageUnreadable,
+        brightness: 0,
+        sharpness: 0,
+      );
+    }
+  }
+
+  double _gray(img.Pixel pixel) {
+    return (0.299 * pixel.r.toDouble()) +
+        (0.587 * pixel.g.toDouble()) +
+        (0.114 * pixel.b.toDouble());
   }
 
   String _toDisplayName(String diseaseKey) {
@@ -174,15 +353,21 @@ class ScannerController extends ChangeNotifier {
     }
   }
 
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+  String _capitalize(String s) {
+    if (s.isEmpty) {
+      return s;
+    }
+
+    return '${s[0].toUpperCase()}${s.substring(1)}';
+  }
 
   @override
   void dispose() {
     if (_camera != null && _isFlashOn) {
-      _camera!.setFlashMode(FlashMode.off);
+      _camera!.setFlashMode(
+        FlashMode.off,
+      );
     }
-
     _camera?.dispose();
     super.dispose();
   }

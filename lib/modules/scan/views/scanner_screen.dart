@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/widgets/toast.dart';
 import 'scan_result_screen.dart';
 import '../controllers/scanner_controller.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -47,10 +48,21 @@ class _ScannerScreenState extends State<ScannerScreen>
     super.dispose();
   }
 
- Future<void> _onCapture() async {
+  Future<void> _onCapture() async {
     final results = await controller.captureAndAnalyze();
 
     if (!mounted || results == null || results.isEmpty) return;
+
+    if (results.first.diseaseName == 'Rescan Required') {
+      TopToast.show(
+        context,
+        results.first.severity,
+        type: ToastType.error,
+        duration: const Duration(seconds: 4),
+      );
+
+      return;
+    }
 
     results.sort((a, b) => b.confidence.compareTo(a.confidence));
 
@@ -74,7 +86,6 @@ class _ScannerScreenState extends State<ScannerScreen>
       localPosition.dy / size.height,
     );
 
-    // Visual feedback indicator point
     setState(() {
       _focusPoint = localPosition;
       _showFocusRing = true;
@@ -85,7 +96,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     await controller.cameraController?.setFocusPoint(point);
     await controller.cameraController?.setExposurePoint(point);
 
-    // Hide focus ring after 1 second
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) {
         setState(() {
@@ -198,7 +208,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                     Text(
                       "↔ Distance: ~30cm | Tap screen to focus",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withAlpha(179),
                         fontSize: 11,
                         fontFamily: 'monospace',
                         letterSpacing: 0.5,
@@ -254,7 +264,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withAlpha(77),
                             width: 4,
                           ),
                         ),
@@ -305,7 +315,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                       Text(
                         "Identifying disease patterns",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withAlpha(179),
                           fontSize: 12,
                         ),
                       ),
