@@ -56,7 +56,7 @@ class _StatisticsReportScreenState extends State<StatisticsReportScreen> {
         ),
       ),
       body: AnimatedBuilder(
-        animation: Listenable.merge([]),
+        animation: widget.controller,
         builder: (context, _) {
           final state = widget.controller.statsLoadState;
           final counts = widget.controller.diseaseCounts;

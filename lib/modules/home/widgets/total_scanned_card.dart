@@ -33,11 +33,29 @@ class TotalScannedCard extends StatelessWidget {
         : Colors.black.withValues(alpha: 0.3);
 
     return AnimatedBuilder(
-      animation: Listenable.merge([]),
+      animation: controller,
       builder: (context, _) {
         final state = controller.statsLoadState;
         final counts = controller.diseaseCounts;
 
+        // Show error/offline states with a different layout
+        if (state == StatisticsLoadState.offline ||
+            state == StatisticsLoadState.serverUnreachable ||
+            state == StatisticsLoadState.authError ||
+            state == StatisticsLoadState.error) {
+          return _buildErrorStateCard(
+            state,
+            cardBg,
+            titleColor,
+            subtitleColor,
+            borderColor,
+            shadowColor,
+            accentGreen,
+            isDark,
+          );
+        }
+
+        // Normal interactive card for loading, success, empty, and initial states
         return GestureDetector(
           onTap: () {
             Navigator.push(
@@ -89,6 +107,110 @@ class TotalScannedCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildErrorStateCard(
+    StatisticsLoadState state,
+    Color cardBg,
+    Color titleColor,
+    Color subtitleColor,
+    Color borderColor,
+    Color shadowColor,
+    Color accentGreen,
+    bool isDark,
+  ) {
+    IconData icon;
+    Color iconColor;
+    String title;
+    String message;
+
+    switch (state) {
+      case StatisticsLoadState.offline:
+        icon = Icons.wifi_off;
+        iconColor = Colors.grey;
+        title = "Unable to load statistics";
+        message = "Connect to the internet to view your latest scan statistics.";
+        break;
+      case StatisticsLoadState.serverUnreachable:
+        icon = Icons.cloud_off;
+        iconColor = Colors.orange;
+        title = "Server unavailable";
+        message = "Unable to reach the server. Please try again in a moment.";
+        break;
+      case StatisticsLoadState.authError:
+        icon = Icons.lock_outline;
+        iconColor = Colors.red;
+        title = "Authentication failed";
+        message = "Please log in again to view your statistics.";
+        break;
+      case StatisticsLoadState.error:
+      default:
+        icon = Icons.error_outline;
+        iconColor = Colors.red;
+        title = "Error loading statistics";
+        message = controller.statsError ?? "An unexpected error occurred";
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: iconColor),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: titleColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 13,
+              color: subtitleColor,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => controller.retryLoadStatistics(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

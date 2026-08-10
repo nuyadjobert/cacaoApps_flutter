@@ -15,7 +15,7 @@ import 'package:cacao_apps/core/db/database_helper.dart';
 import 'package:cacao_apps/modules/home/models/disease_counts_model.dart';
 import 'package:cacao_apps/modules/home/services/statistics_service.dart';
 
-class HomeController {
+class HomeController extends ChangeNotifier {
   bool _isResourcesLoaded = false;
   String? userName;
   late final SyncTrigger _syncTrigger;
@@ -318,6 +318,7 @@ class HomeController {
     _selectedYear = year;
     _statsLoadState = StatisticsLoadState.loading;
     _statsError = null;
+    notifyListeners();
 
     try {
       debugPrint('📊 [HOME] Loading statistics${year != null ? ' for year $year' : ' (all-time)'}');
@@ -372,6 +373,7 @@ class HomeController {
       _statsError = 'An unexpected error occurred';
     } finally {
       _isLoadingStats = false;
+      notifyListeners();
     }
   }
 
