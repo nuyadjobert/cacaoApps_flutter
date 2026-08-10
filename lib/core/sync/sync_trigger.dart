@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/network/client.dart';
-// 1. Point to the new Scan Repository
 import 'package:cacao_apps/core/db/scan_repository.dart';
+import 'package:cacao_apps/core/db/sync_queue_reporitory.dart';
+import 'package:cacao_apps/core/services/queue_sync_services.dart';
 import 'package:cacao_apps/modules/scan/services/scan_sync_service.dart';
 
 import 'dart:developer' as developer;
@@ -13,13 +14,16 @@ class SyncTrigger {
   Timer? _retryTimer;
   bool _running = false;
   late final ScanSyncService _scanSync;
+  late final QueueSyncService _queueSync;
   
-  // 2. Initialize the Scan Repository
   final ScanRepository _scanRepository = ScanRepository();
+  final SyncQueueRepository _syncQueueRepository = SyncQueueRepository();
 
-  SyncTrigger() {
-    // 3. Pass the repository into the sync service instead of the raw DB
+  Function()? onSyncComplete;
+
+  SyncTrigger({this.onSyncComplete}) {
     _scanSync = ScanSyncService(dio: DioClient.dio, scanRepository: _scanRepository);
+    _queueSync = QueueSyncService(dio: DioClient.dio, queueRepository: _syncQueueRepository);
   }
 
   void start() {
@@ -27,7 +31,6 @@ class SyncTrigger {
 
     _trySync();
 
-    // Listen to changes with a small debounce to avoid flicker
     _sub = Connectivity().onConnectivityChanged
         .where((results) => results.any((r) => r != ConnectivityResult.none))
         .debounceTime(const Duration(seconds: 2)) 
@@ -49,11 +52,7 @@ class SyncTrigger {
     _running = true;
 
     try {
-      // 4. Ask the repository if there are pending scans
-      final hasData = await _scanRepository.hasPendingScans();
-      if (!hasData) return;
-
-      // Real-world reachability check
+      // Check if server is reachable
       final ok = await _isServerReachable();
       if (!ok) {
         developer.log(
@@ -63,7 +62,25 @@ class SyncTrigger {
         return;
       }
 
-      await _scanSync.syncPendingScans();
+      // Sync pending scans
+      final hasPendingScans = await _scanRepository.hasPendingScans();
+      if (hasPendingScans) {
+        developer.log('📤 Syncing pending scans...', name: 'SyncTrigger');
+        await _scanSync.syncPendingScans();
+      }
+
+      // Sync pending queue items (profile updates, etc.)
+      final pendingQueue = await _syncQueueRepository.getPendingJobs();
+      if (pendingQueue.isNotEmpty) {
+        developer.log('📤 Syncing ${pendingQueue.length} pending queue items...', name: 'SyncTrigger');
+        await _queueSync.syncPendingQueue();
+      }
+
+      // Call the callback after successful sync
+      if (onSyncComplete != null && (hasPendingScans || pendingQueue.isNotEmpty)) {
+        developer.log('📊 Triggering post-sync callbacks', name: 'SyncTrigger');
+        onSyncComplete!();
+      }
     } catch (e) {
       developer.log('❌ Sync trigger error', name: 'SyncTrigger', error: e);
     } finally {
@@ -94,16 +111,30 @@ class SyncTrigger {
     _running = true;
 
     try {
-      final hasData = await _scanRepository.hasPendingScans();
-      if (!hasData) return false; // Nothing to sync
-
       final ok = await _isServerReachable();
       if (!ok) {
         developer.log('🌐 Server unreachable', name: 'SyncTrigger');
         return false; // No internet
       }
 
-      await _scanSync.syncPendingScans();
+      // Sync pending scans
+      final hasPendingScans = await _scanRepository.hasPendingScans();
+      if (hasPendingScans) {
+        await _scanSync.syncPendingScans();
+      }
+
+      // Sync pending queue items (profile updates, etc.)
+      final pendingQueue = await _syncQueueRepository.getPendingJobs();
+      if (pendingQueue.isNotEmpty) {
+        await _queueSync.syncPendingQueue();
+      }
+
+      // Call the callback after successful sync
+      if (onSyncComplete != null && (hasPendingScans || pendingQueue.isNotEmpty)) {
+        developer.log('📊 Triggering post-sync callbacks', name: 'SyncTrigger');
+        onSyncComplete!();
+      }
+
       return true; // Sync successful
     } catch (e) {
       developer.log('❌ Sync trigger error', name: 'SyncTrigger', error: e);

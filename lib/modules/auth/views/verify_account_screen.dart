@@ -8,6 +8,7 @@ import '../controllers/registration_controller.dart';
 import '../models/registration_model.dart';
 import 'registration_screen.dart';
 import 'verifying_overlay.dart';
+import 'verify_unsuccess_screen.dart';
 import 'verify_success_screen.dart'; // ← new import
 
 class VerifyAccountScreen extends StatefulWidget {
@@ -60,12 +61,12 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
           listenable: controller,
           builder: (context, _) {
             // ── Full-screen verifying overlay while loading ──
-            if (controller.isLoading) {
+            if (controller.verificationStatus == VerificationStatus.verifying) {
               return const VerifyingOverlay();
             }
 
             // ── Success screen after verified ──
-            if (controller.isVerified && !controller.isNewUserRequired) {
+            if (controller.verificationStatus == VerificationStatus.success) {
               return VerifySuccessScreen(
                 onContinue: () {
                   Navigator.of(context).pushAndRemoveUntil(
@@ -95,6 +96,13 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
                   ),
                 );
               });
+            }
+
+            if (controller.verificationStatus == VerificationStatus.failed) {
+              return VerifyUnsuccessScreen(
+                message: controller.verificationMessage,
+                onTryAgain: controller.resetVerification,
+              );
             }
 
             return SafeArea(
@@ -270,26 +278,7 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
                                     ),
                                   ),
                                   onPressed: () async {
-                                    final messenger =
-                                        ScaffoldMessenger.of(context);
-
                                     await controller.verify();
-
-                                    if (!mounted) return;
-
-                                    if (!controller.isVerified &&
-                                        !controller.isNewUserRequired) {
-                                      final msg = controller.errorMessage;
-                                      if (msg != null && msg.isNotEmpty) {
-                                        messenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text(msg),
-                                            backgroundColor: Colors.redAccent,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
-                                    }
                                   },
                                   child: const Text(
                                     "VERIFY",

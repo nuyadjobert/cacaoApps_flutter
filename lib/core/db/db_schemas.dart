@@ -1,5 +1,3 @@
-// File: lib/core/database/db_schemas.dart
-
 class DbSchemas {
   static const String createUsersTable = '''
     CREATE TABLE IF NOT EXISTS users (

@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/widgets/toast.dart';
 import 'scan_result_screen.dart';
 import '../controllers/scanner_controller.dart';
 import '../widgets/scanner_overlay_painter.dart';
@@ -15,18 +16,18 @@ class ScannerScreen extends StatefulWidget {
 class _ScannerScreenState extends State<ScannerScreen>
     with SingleTickerProviderStateMixin {
   late final ScannerController controller;
-
   late AnimationController _animationController;
 
   static const double _frameWidth = 280;
   static const double _frameHeight = 440;
 
+  Offset? _focusPoint;
+  bool _showFocusRing = false;
+
   @override
   void initState() {
     super.initState();
-
     controller = ScannerController();
-
     _initialize();
 
     _animationController = AnimationController(
@@ -37,7 +38,6 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Future<void> _initialize() async {
     await controller.init();
-
     if (!mounted) return;
   }
 
@@ -53,6 +53,17 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     if (!mounted || results == null || results.isEmpty) return;
 
+    if (results.first.diseaseName == 'Rescan Required') {
+      TopToast.show(
+        context,
+        results.first.severity,
+        type: ToastType.error,
+        duration: const Duration(seconds: 4),
+      );
+
+      return;
+    }
+
     results.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     Navigator.push(
@@ -67,9 +78,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Future<void> _onTapToFocus(TapDownDetails details) async {
     final RenderBox box = context.findRenderObject() as RenderBox;
-
     final Offset localPosition = box.globalToLocal(details.globalPosition);
-
     final Size size = box.size;
 
     final Offset point = Offset(
@@ -77,12 +86,29 @@ class _ScannerScreenState extends State<ScannerScreen>
       localPosition.dy / size.height,
     );
 
+    setState(() {
+      _focusPoint = localPosition;
+      _showFocusRing = true;
+    });
+
+    HapticFeedback.selectionClick();
+
     await controller.cameraController?.setFocusPoint(point);
     await controller.cameraController?.setExposurePoint(point);
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        setState(() {
+          _showFocusRing = false;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -101,34 +127,21 @@ class _ScannerScreenState extends State<ScannerScreen>
           backgroundColor: Colors.black,
           body: Stack(
             children: [
-              // 1. Camera Preview — full screen (Unchanged Size/Logic)
-              ClipRect(
-                child: OverflowBox(
-                  alignment: Alignment.center,
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: controller
-                          .cameraController!.value.previewSize!.height,
-                      height:
-                          controller.cameraController!.value.previewSize!.width,
-                      child: GestureDetector(
-                        onTapDown: _onTapToFocus,
-                        child: ClipRect(
-                          child: OverflowBox(
-                            alignment: Alignment.center,
-                            child: FittedBox(
-                              fit: BoxFit.cover,
-                              child: SizedBox(
-                                width: controller.cameraController!.value
-                                    .previewSize!.height,
-                                height: controller
-                                    .cameraController!.value.previewSize!.width,
-                                child:
-                                    CameraPreview(controller.cameraController!),
-                              ),
-                            ),
-                          ),
+              // 1. Camera Preview with Tap Gesture
+              GestureDetector(
+                onTapDown: _onTapToFocus,
+                child: SizedBox.expand(
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.center,
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: controller
+                              .cameraController!.value.previewSize!.height,
+                          height: controller
+                              .cameraController!.value.previewSize!.width,
+                          child: CameraPreview(controller.cameraController!),
                         ),
                       ),
                     ),
@@ -136,7 +149,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
 
-              // 2. Custom Pod Scanner Overlay (Mask, Dashes, Corners, Crosshair)
+              // 2. Custom Pod Scanner Frame Overlay Mask
               Positioned.fill(
                 child: CustomPaint(
                   painter: ScannerOverlayPainter(
@@ -145,12 +158,26 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
               ),
+              if (_showFocusRing && _focusPoint != null)
+                Positioned(
+                  left: _focusPoint!.dx - 25,
+                  top: _focusPoint!.dy - 25,
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF2EFA8A),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
 
-              // 3. Frame size label & instructions
+              // 5. Instruction banner & Guidance text
               Positioned(
-                top: MediaQuery.of(context).size.height / 2 +
-                    _frameHeight / 2 +
-                    24, // Spaced neatly below the frame
+                top: screenSize.height / 2 + _frameHeight / 2 + 20,
                 left: 0,
                 right: 0,
                 child: Column(
@@ -160,28 +187,28 @@ class _ScannerScreenState extends State<ScannerScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D291A), // Dark green background
+                        color: const Color(0xFF0D291A),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: const Color(0xFF184D32), // Subtle green border
+                          color: const Color(0xFF184D32),
                           width: 1.5,
                         ),
                       ),
                       child: const Text(
-                        "FIT THE CACAO POD INSIDE",
+                        "CENTER POD INSIDE FRAME",
                         style: TextStyle(
-                          color: Color(0xFF2EFA8A), // Vibrant green text
+                          color: Color(0xFF2EFA8A),
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.2,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
-                      "↔ Keep distance: ~30cm",
+                      "↔ Distance: ~30cm | Tap screen to focus",
                       style: TextStyle(
-                        color: Colors.white.withAlpha(179), // 70% opacity
+                        color: Colors.white.withAlpha(179),
                         fontSize: 11,
                         fontFamily: 'monospace',
                         letterSpacing: 0.5,
@@ -191,7 +218,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
 
-              // 4. UI Controls (top bar + capture button)
+              // 6. UI Navigation & Capture Action Bar
               SafeArea(
                 child: Column(
                   children: [
@@ -237,7 +264,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withAlpha(77), // 30% opacity
+                            color: Colors.white.withAlpha(77),
                             width: 4,
                           ),
                         ),
@@ -258,12 +285,12 @@ class _ScannerScreenState extends State<ScannerScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
 
-              // 5. Analyzing overlay
+              // 7. Analyzing Loading Screen Overlay
               if (controller.isAnalyzing)
                 Container(
                   color: Colors.black87,
@@ -288,7 +315,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                       Text(
                         "Identifying disease patterns",
                         style: TextStyle(
-                          color: Colors.white.withAlpha(179), // 70% opacity
+                          color: Colors.white.withAlpha(179),
                           fontSize: 12,
                         ),
                       ),

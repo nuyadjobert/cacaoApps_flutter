@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:cacao_apps/core/services/notification_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cacao_apps/core/db/user_repository.dart';
@@ -10,11 +12,13 @@ import 'package:cacao_apps/core/db/guide_sync_service.dart';
 import 'package:cacao_apps/core/network/client.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cacao_apps/core/db/database_helper.dart';
+import 'package:cacao_apps/modules/home/models/disease_counts_model.dart';
+import 'package:cacao_apps/modules/home/services/statistics_service.dart';
 
-class HomeController {
+class HomeController extends ChangeNotifier {
   bool _isResourcesLoaded = false;
   String? userName;
-  final SyncTrigger _syncTrigger = SyncTrigger();
+  late final SyncTrigger _syncTrigger;
 
   final CacaoGuideRepository _guideRepo = CacaoGuideRepository();
   final ScanRepository _scanRepository = ScanRepository();
@@ -22,11 +26,32 @@ class HomeController {
   late final LocalNotificationService _notificationService =
       LocalNotificationService(_scanRepository);
   late final GuideSyncService _guideSyncService;
+  late final StatisticsService _statisticsService;
+
+  DiseaseCountsModel? _diseaseCounts;
+  int? _selectedYear;
+  bool _isLoadingStats = false;
+  StatisticsLoadState _statsLoadState = StatisticsLoadState.initial;
+  String? _statsError;
+
+  // Getters for statistics state
+  DiseaseCountsModel? get diseaseCounts => _diseaseCounts;
+  int? get selectedYear => _selectedYear;
+  bool get isLoadingStats => _isLoadingStats;
+  StatisticsLoadState get statsLoadState => _statsLoadState;
+  String? get statsError => _statsError;
 
   HomeController() {
     _guideSyncService = GuideSyncService(
       dio: DioClient.dio,
       guideRepository: _guideRepo,
+    );
+    _statisticsService = StatisticsService(dio: DioClient.dio);
+    
+    _syncTrigger = SyncTrigger(
+      onSyncComplete: () {
+        refreshStatisticsAfterSync();
+      },
     );
   }
 
@@ -40,7 +65,6 @@ class HomeController {
         return;
       }
 
-      // Extract just the keys to keep the toast readable
       final diseaseList = rawData.map((row) => row['disease_key']).join(', ');
 
       Fluttertoast.showToast(
@@ -280,4 +304,105 @@ class HomeController {
       await Future.delayed(const Duration(milliseconds: 1200));
   Future<void> _fetchEducationalContent() async =>
       await Future.delayed(const Duration(milliseconds: 1000));
+
+  // ========== SCAN STATISTICS METHODS ==========
+
+  /// Load scan statistics for the authenticated user
+  /// [year] - Optional year filter. If null, loads all-time statistics
+  /// [forceRefresh] - If true, bypasses cache and fetches fresh data
+  Future<void> loadStatistics({int? year, bool forceRefresh = false}) async {
+    // Don't reload if already loading
+    if (_isLoadingStats && !forceRefresh) return;
+
+    _isLoadingStats = true;
+    _selectedYear = year;
+    _statsLoadState = StatisticsLoadState.loading;
+    _statsError = null;
+    notifyListeners();
+
+    try {
+      debugPrint('📊 [HOME] Loading statistics${year != null ? ' for year $year' : ' (all-time)'}');
+
+      // Check connectivity first
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasConnection = connectivity.any((r) => r != ConnectivityResult.none);
+
+      if (!hasConnection) {
+        _statsLoadState = StatisticsLoadState.offline;
+        _statsError = 'No internet connection';
+        debugPrint('🌐 [HOME] Device is offline');
+        return;
+      }
+
+      // Check if server is reachable
+      final serverReachable = await _statisticsService.isServerReachable();
+      if (!serverReachable) {
+        _statsLoadState = StatisticsLoadState.serverUnreachable;
+        _statsError = 'Server is currently unavailable';
+        debugPrint('🌐 [HOME] Server unreachable');
+        return;
+      }
+
+      // Fetch statistics from API
+      _diseaseCounts = await _statisticsService.getUserDiseaseCounts(year: year);
+
+      if (_diseaseCounts!.isEmpty) {
+        _statsLoadState = StatisticsLoadState.empty;
+        debugPrint('📊 [HOME] No scans found');
+      } else {
+        _statsLoadState = StatisticsLoadState.success;
+        debugPrint('✅ [HOME] Statistics loaded: ${_diseaseCounts!.totalScans} total scans');
+      }
+    } on DioException catch (e) {
+      debugPrint('❌ [HOME] API error: ${e.type} - ${e.message}');
+
+      if (e.response?.statusCode == 401) {
+        _statsLoadState = StatisticsLoadState.authError;
+        _statsError = 'Authentication failed';
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        _statsLoadState = StatisticsLoadState.serverUnreachable;
+        _statsError = 'Request timed out';
+      } else {
+        _statsLoadState = StatisticsLoadState.error;
+        _statsError = e.message ?? 'Failed to load statistics';
+      }
+    } catch (e) {
+      debugPrint('❌ [HOME] Unexpected error: $e');
+      _statsLoadState = StatisticsLoadState.error;
+      _statsError = 'An unexpected error occurred';
+    } finally {
+      _isLoadingStats = false;
+      notifyListeners();
+    }
+  }
+
+  /// Refresh statistics after sync completes
+  Future<void> refreshStatisticsAfterSync() async {
+    debugPrint('🔄 [HOME] Refreshing statistics after sync');
+    await loadStatistics(year: _selectedYear, forceRefresh: true);
+  }
+
+  /// Change the selected year and reload statistics
+  Future<void> changeYear(int? year) async {
+    if (_selectedYear == year) return; // Already selected
+    await loadStatistics(year: year);
+  }
+
+  /// Retry loading statistics after error or offline state
+  Future<void> retryLoadStatistics() async {
+    await loadStatistics(year: _selectedYear, forceRefresh: true);
+  }
+}
+
+/// Statistics load state enum
+enum StatisticsLoadState {
+  initial,
+  loading,
+  success,
+  empty,
+  offline,
+  serverUnreachable,
+  authError,
+  error,
 }

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import './database_helper.dart';
 
@@ -40,22 +39,6 @@ class CacaoGuideRepository {
           );
 
           final monitoringPlan = severityMap['monitoring_plan'];
-
-          debugPrint('----------------------------------------');
-          debugPrint('Disease       : ${diseaseMap['disease_key']}');
-          debugPrint('Severity      : ${severityMap['level']}');
-
-          if (monitoringPlan == null) {
-            debugPrint('Monitoring Plan : NULL');
-          } else {
-            debugPrint(
-              'Rescan After   : ${monitoringPlan['rescan_after_days']} day(s)',
-            );
-            debugPrint(
-              'Preferred Hour : ${monitoringPlan['preferred_time_hour']}',
-            );
-          }
-
           if (monitoringPlan != null) {
             batch.insert(
               'guide_monitoring_plans',
@@ -87,9 +70,7 @@ class CacaoGuideRepository {
         }
       }
       await batch.commit(noResult: true);
-      debugPrint('Cacao Guide Sync Completed Successfully.');
     } catch (e) {
-      debugPrint('Error syncing cacao guide: $e');
       rethrow;
     }
   }
@@ -166,21 +147,8 @@ class CacaoGuideRepository {
     ORDER BY r.sort_order ASC
   ''', [diseaseKey, severityLevel]);
 
-    debugPrint("========== RAW DB RECOMMENDATIONS ==========");
-
-    for (final row in rows) {
-      debugPrint("CATEGORY: ${row['category_key']}");
-      debugPrint("RAW CONTENT: ${row['content']}");
-    }
-
-    debugPrint("===========================================");
-
     return rows.map((row) {
       final decoded = json.decode(row['content'] as String);
-
-      debugPrint("DECODED CONTENT: $decoded");
-      debugPrint("TYPE: ${decoded.runtimeType}");
-
       return {
         'category_key': row['category_key'],
         'content': decoded,
@@ -191,7 +159,6 @@ class CacaoGuideRepository {
 
   Future<Map<String, dynamic>?> getGuideForPrediction(
       String mlPrediction) async {
-    // 1. Handle special non-disease cases
     if (mlPrediction == 'healthy' || mlPrediction == 'non_cacao') {
       return {
         'status': mlPrediction,
@@ -199,7 +166,6 @@ class CacaoGuideRepository {
       };
     }
 
-    // 2. Parse the ML string to extract disease_key and severity_level
     String diseaseKey = '';
     String severityLevel = '';
 
@@ -213,18 +179,11 @@ class CacaoGuideRepository {
       severityLevel = 'severe';
       diseaseKey = mlPrediction.replaceAll('_severe', '');
     } else {
-      // Fallback just in case the format doesn't match
       diseaseKey = mlPrediction;
       severityLevel = 'unknown';
     }
 
-    // 3. Fetch the data using the parsed keys
     final diseaseInfo = await getDisease(diseaseKey);
-
-    if (diseaseInfo == null) {
-      debugPrint('No disease info found for key: $diseaseKey');
-      return null;
-    }
 
     final monitoringPlan = await getMonitoringPlan(diseaseKey, severityLevel);
     final recommendations = await getRecommendations(diseaseKey, severityLevel);

@@ -42,7 +42,6 @@ class SyncQueueRepository {
     }
   }
 
-  /// Returns all pending jobs ordered by oldest first.
   Future<List<SyncQueue>> getPendingJobs() async {
     final db = await _dbHelper.db;
 
@@ -66,7 +65,6 @@ class SyncQueueRepository {
     );
   }
 
-  /// Increments retry count after a failed sync attempt.
   Future<void> incrementRetry(int id) async {
     final db = await _dbHelper.db;
 

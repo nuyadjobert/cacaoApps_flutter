@@ -70,7 +70,6 @@ class ScanRepository {
     );
     return (count ?? 0) > 0;
   }
-  // Add these inside your ScanRepository class:
 
   Future<List<Map<String, dynamic>>> getHistoryByUserId(String userId) async {
     final database = await _dbHelper.db;
@@ -128,7 +127,7 @@ class ScanRepository {
     await database.update(
       'scan_history',
       {
-        'notif_local_id': 1, // or notification_sent = 1
+        'notif_local_id': 1, 
       },
       where: 'local_id = ?',
       whereArgs: [localId],

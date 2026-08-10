@@ -1,30 +1,34 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-class VerifySuccessScreen extends StatefulWidget {
-  final VoidCallback onContinue;
+import 'package:flutter/material.dart';
 
-  const VerifySuccessScreen({super.key, required this.onContinue});
+import '../../../core/widgets/toast.dart';
+
+class VerifyUnsuccessScreen extends StatefulWidget {
+  final String message;
+  final VoidCallback onTryAgain;
+
+  const VerifyUnsuccessScreen({
+    super.key,
+    required this.message,
+    required this.onTryAgain,
+  });
 
   @override
-  State<VerifySuccessScreen> createState() => _VerifySuccessScreenState();
+  State<VerifyUnsuccessScreen> createState() => _VerifyUnsuccessScreenState();
 }
 
-class _VerifySuccessScreenState extends State<VerifySuccessScreen>
+class _VerifyUnsuccessScreenState extends State<VerifyUnsuccessScreen>
     with TickerProviderStateMixin {
-  static const Color forestGreen = Color(0xFF1B5E20);
-
   late final AnimationController _scaleController;
   late final AnimationController _fadeController;
   late final AnimationController _sparkleController;
-
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-
     _scaleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -47,13 +51,17 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
       curve: Curves.easeIn,
     );
 
-    // Staggered entry
     _scaleController.forward();
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) _sparkleController.forward();
     });
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _fadeController.forward();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        TopToast.show(context, widget.message, type: ToastType.error);
+      }
     });
   }
 
@@ -67,17 +75,27 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final errorColor = colorScheme.error;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: widget.onTryAgain,
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: colorScheme.onSurface,
+                      size: 22,
+                    ),
+                  ),
                   const Spacer(),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -91,36 +109,29 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
                           fit: BoxFit.contain,
                         ),
                       ),
-                      const Text(
-                        "TheobroTect",
-                        style: TextStyle(
-                          fontSize: 14,
+                      Text(
+                        'TheobroTect',
+                        style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: forestGreen,
+                          color: colorScheme.primary,
                           letterSpacing: -0.5,
                         ),
                       ),
                     ],
                   ),
                   const Spacer(),
-                  const SizedBox(width: 22),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-
             const Spacer(flex: 2),
-
-            // ── Animated checkmark with sparkles ──
             SizedBox(
               width: 220,
               height: 220,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Sparkle diamonds around the circle
-                  ..._buildSparkles(),
-
-                  // Scale-in green circle with checkmark
+                  ..._buildSparkles(errorColor),
                   ScaleTransition(
                     scale: _scaleAnimation,
                     child: Container(
@@ -128,18 +139,18 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
                       height: 140,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: forestGreen,
+                        color: errorColor,
                         boxShadow: [
                           BoxShadow(
-                            color: forestGreen.withValues(alpha: 0.35),
+                            color: errorColor.withValues(alpha: 0.35),
                             blurRadius: 30,
                             spreadRadius: 4,
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.check_rounded,
-                        color: Colors.white,
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: colorScheme.onError,
                         size: 72,
                       ),
                     ),
@@ -147,40 +158,36 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
                 ],
               ),
             ),
-
             const SizedBox(height: 40),
-
-            // ── Title + subtitle ──
             FadeTransition(
               opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  const Text(
-                    "Email Verified!",
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      letterSpacing: -0.5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  children: [
+                    Text(
+                      'Verification Failed',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Your email address has been\nverified successfully.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                      height: 1.5,
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.message,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-
             const Spacer(flex: 2),
-
-            // ── Continue button ──
             FadeTransition(
               opacity: _fadeAnimation,
               child: Padding(
@@ -190,17 +197,17 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
                   height: 56,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: forestGreen,
-                      foregroundColor: Colors.white,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       elevation: 4,
-                      shadowColor: forestGreen.withValues(alpha: 0.4),
+                      shadowColor: colorScheme.primary.withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: widget.onContinue,
+                    onPressed: widget.onTryAgain,
                     child: const Text(
-                      "Continue",
+                      'Try Again',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -211,23 +218,22 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // ── Bottom secure label ──
             Padding(
               padding: const EdgeInsets.only(bottom: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.verified_user_outlined,
-                      color: forestGreen, size: 16),
+                  Icon(
+                    Icons.verified_user_outlined,
+                    color: colorScheme.primary,
+                    size: 16,
+                  ),
                   const SizedBox(width: 6),
                   Text(
-                    "Your data is 100% secure",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
+                    'Your data is 100% secure',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -239,53 +245,40 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
     );
   }
 
-  // Builds 8 sparkle diamonds positioned around the circle
-  List<Widget> _buildSparkles() {
-    final colors = [
-      Colors.amber,
-      const Color(0xFF4FC3F7), // light blue
-      Colors.amber,
-      const Color(0xFF4FC3F7),
-      Colors.amber,
-      const Color(0xFF4FC3F7),
-      Colors.amber,
-      const Color(0xFF4FC3F7),
+  List<Widget> _buildSparkles(Color color) {
+    const positions = [
+      Offset(-80, -60),
+      Offset(80, -60),
+      Offset(-90, 10),
+      Offset(90, 10),
+      Offset(-60, 70),
+      Offset(60, 70),
+      Offset(-20, -88),
+      Offset(20, -88),
     ];
+    const sizes = [12.0, 10.0, 8.0, 12.0, 10.0, 8.0, 10.0, 8.0];
 
-    final positions = [
-      const Offset(-80, -60),
-      const Offset(80, -60),
-      const Offset(-90, 10),
-      const Offset(90, 10),
-      const Offset(-60, 70),
-      const Offset(60, 70),
-      const Offset(-20, -88),
-      const Offset(20, -88),
-    ];
-
-    final sizes = [12.0, 10.0, 8.0, 12.0, 10.0, 8.0, 10.0, 8.0];
-
-    return List.generate(8, (i) {
+    return List.generate(positions.length, (index) {
       return AnimatedBuilder(
         animation: _sparkleController,
         builder: (context, child) {
           final progress = _sparkleController.value;
-          final delay = (i * 0.1).clamp(0.0, 1.0);
+          final delay = (index * 0.1).clamp(0.0, 1.0);
           final localProgress =
               ((progress - delay) / (1.0 - delay)).clamp(0.0, 1.0);
 
           return Positioned(
-            left: 110 + positions[i].dx - sizes[i] / 2,
-            top: 110 + positions[i].dy - sizes[i] / 2,
+            left: 110 + positions[index].dx - sizes[index] / 2,
+            top: 110 + positions[index].dy - sizes[index] / 2,
             child: Opacity(
               opacity: localProgress,
               child: Transform.rotate(
                 angle: math.pi / 4,
                 child: Container(
-                  width: sizes[i],
-                  height: sizes[i],
+                  width: sizes[index],
+                  height: sizes[index],
                   decoration: BoxDecoration(
-                    color: colors[i],
+                    color: color.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

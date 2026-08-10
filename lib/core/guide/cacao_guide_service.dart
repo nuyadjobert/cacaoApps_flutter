@@ -31,18 +31,15 @@ class CacaoGuideService {
     final recs = disease['recommendations'] as Map<String, dynamic>?;
     if (recs == null) return null;
 
-    // ✅ FIX: Both 'healthy' and 'non_cacao' use 'default' key
     final usesDefault = diseaseKey == 'healthy' || diseaseKey == 'non_cacao';
     final key = usesDefault ? 'default' : severityKey;
 
     return recs[key] as Map<String, dynamic>?;
   }
 
-  /// Parses a model label string into diseaseKey + severityKey
   Map<String, String> parseModelLabel(String label) {
     const severities = {'mild', 'moderate', 'severe'};
 
-    // ✅ Handle special single-word labels
     if (label == 'healthy' || label == 'non_cacao') {
       return {
         'diseaseKey': label,
@@ -74,7 +71,6 @@ class CacaoGuideService {
     required String diseaseKey,
     required String severityKey,
   }) async {
-    // ✅ FIX: Handle both 'healthy' and 'non_cacao' at the disease level
     if (diseaseKey == 'healthy' || diseaseKey == 'non_cacao') {
       final disease = await getDisease(diseaseKey);
       final monitoringPlan = disease?['monitoring_plan'];

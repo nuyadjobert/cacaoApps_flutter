@@ -22,8 +22,6 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
   @override
   void initState() {
     super.initState();
-    // initialPage: 1 makes the 2nd card the center on opening
-    // viewportFraction 0.82-0.85 ensures side cards are partially visible
     _pageController = PageController(
       viewportFraction: 0.82,
       initialPage: 1,
@@ -41,7 +39,7 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
     return Column(
       children: [
         SizedBox(
-          height: 200, // Adjusted for a cleaner rectangular profile
+          height: 200,
           child: PageView.builder(
             controller: _pageController,
             itemCount: widget.diseaseData.length,
@@ -70,15 +68,12 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
         curve: Curves.easeOutCubic,
         margin: EdgeInsets.symmetric(
           horizontal: 8,
-          // Side cards shrink slightly vertically to emphasize the center card
           vertical: isActive ? 0 : 12,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16), // Less rounding for a "rectangular" look
+          borderRadius: BorderRadius.circular(16), 
           boxShadow: [
             BoxShadow(
-              // Shadows read fine on light backgrounds but disappear into a dark
-              // scaffold, so lean on opacity + a touch more blur in dark mode.
               color: Colors.black.withAlpha(isDark ? (isActive ? 90 : 40) : (isActive ? 51 : 13)),
               blurRadius: 10,
               offset: const Offset(0, 5),
@@ -96,7 +91,6 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
                 fit: BoxFit.cover,
               ),
 
-              // 2. Linear Gradient Overlay
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -104,14 +98,13 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withAlpha(204), // 0.8 * 255 = 204
+                      Colors.black.withAlpha(204),
                     ],
                     stops: const [0.4, 1.0],
                   ),
                 ),
               ),
 
-              // 3. Top Label (Optional - kept for context)
               Positioned(
                 top: 12,
                 right: 12,
@@ -156,8 +149,6 @@ class _DiseaseSliderState extends State<DiseaseSlider> {
   }
 
   Widget _buildBadge() {
-    // Image cards always have a dark gradient overlay underneath this badge
-    // regardless of app theme, so the light-on-glass look stays as-is.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

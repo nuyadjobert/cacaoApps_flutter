@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cacao_apps/modules/auth/login_factory.dart';
 import '../controllers/settings_controller.dart';
-import '../../history/controllers/history_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../core/model/user.model.dart';
 import '../widgets/profile_hero_card.dart';
-import '../widgets/stats_row.dart';
 import '../widgets/settings_section_label.dart';
 import '../widgets/account_settings.dart';
 import '../widgets/support_settings.dart';
@@ -23,14 +21,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsController _controller = SettingsController();
-  final HistoryController _historyController = HistoryController();
   LocalUser? currentUser;
 
   File? _profileImage;
 
-  int _overallScans = 0;
-  String _farmStatus = "Loading...";
-  int _diseasesScanned = 0;
 
   @override
   void initState() {
@@ -45,12 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadFarmStats() async {
-    final stats = await _historyController.getFarmStats();
     if (!mounted) return;
     setState(() {
-      _overallScans = stats['overallScans'];
-      _farmStatus = stats['farmStatus'];
-      _diseasesScanned = stats['diseasesScanned'];
+
     });
   }
 
@@ -123,15 +114,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     textSecondary: textSecondary,
                     currentUser: currentUser,
                     profileImage: _profileImage,
-                  ),
-                  const SizedBox(height: 12),
-                  StatsRow(
-                    cardBg: cardBg,
-                    textPrimary: textPrimary,
-                    textMuted: textMuted,
-                    overallScans: _overallScans,
-                    farmStatus: _farmStatus,
-                    diseasesScanned: _diseasesScanned,
                   ),
                 ],
               ),

@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Centralized forest color palette so light & dark mode
-/// both stay on-brand instead of falling back to generic grays.
 class AppColors {
-  // Core forest greens (used as accents in both modes)
   static const Color forestDark = Color(0xFF1B3022);
   static const Color forestMid = Color(0xFF2D6A4F);
   static const Color forestLight = Color(0xFF52B788);
 
-  // Light mode surfaces
   static const Color creamBg = Color(0xFFF9FBF9);
   static const Color creamCard = Colors.white;
 
-  // Dark mode surfaces — deep forest, not neutral black
-  static const Color nightBg = Color(0xFF0F1B14); // background
-  static const Color nightCard = Color(0xFF16241C); // cards/rows
+  static const Color nightBg = Color(0xFF0F1B14); 
+  static const Color nightCard = Color(0xFF16241C); 
   static const Color nightDivider = Color(0xFF213024);
 }
 

@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart';
 import 'db_schemas.dart';
 
 class DatabaseHelper {
@@ -19,8 +18,6 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'cacao_app.db');
-    debugPrint('DB FILE: $path');
-
     return openDatabase(
       path,
       version: 1,

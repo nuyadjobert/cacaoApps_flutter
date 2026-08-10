@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui'; 
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:flutter/foundation.dart';
@@ -26,6 +27,7 @@ class CacaoModelService {
     "mealybug",
     "healthy",
     "non_cacao",
+    "unsupported_disease",
   ];
 
   static const severityLabels = [
@@ -43,10 +45,10 @@ class CacaoModelService {
       debugPrint("Loading TFLite model...");
 
       _interpreter = await Interpreter.fromAsset(
-        'assets/models/final_ft_model1.6.tflite',
+        'assets/models/final_ft_model2.5.tflite',
         options: InterpreterOptions()..threads = Platform.numberOfProcessors,
       );
-
+    //the 2.3 is good
       _isLoaded = true;
 
       for (int i = 0; i < _interpreter!.getOutputTensors().length; i++) {
@@ -77,7 +79,10 @@ class CacaoModelService {
     }
   }
 
-  Future<List<MultiTaskPrediction>> predict(String imagePath) async {
+  Future<List<MultiTaskPrediction>> predict(
+    String imagePath, {
+    Rect? cropRect,
+  }) async {
     if (!_isLoaded || _interpreter == null) {
       throw StateError('Model not loaded. Call loadModel() first.');
     }
@@ -89,24 +94,50 @@ class CacaoModelService {
       throw Exception('Failed to decode image.');
     }
 
-    final int shortSide = min(decoded.width, decoded.height);
-    final int offsetX = (decoded.width - shortSide) ~/ 2;
-    final int offsetY = (decoded.height - shortSide) ~/ 2;
+    img.Image targetImage;
 
-    final squareImage = img.copyCrop(
-      decoded,
-      x: offsetX,
-      y: offsetY,
-      width: shortSide,
-      height: shortSide,
-    );
+    // 1. CROP ACCORDING TO CROP_RECT IF PROVIDED
+    if (cropRect != null) {
+      final int cropX =
+          (cropRect.left * decoded.width).round().clamp(0, decoded.width);
+      final int cropY =
+          (cropRect.top * decoded.height).round().clamp(0, decoded.height);
+      final int cropW = (cropRect.width * decoded.width)
+          .round()
+          .clamp(1, decoded.width - cropX);
+      final int cropH = (cropRect.height * decoded.height)
+          .round()
+          .clamp(1, decoded.height - cropY);
 
-    // 2. Get the two score arrays from inference
-    final results = _runInference(squareImage);
+      targetImage = img.copyCrop(
+        decoded,
+        x: cropX,
+        y: cropY,
+        width: cropW,
+        height: cropH,
+      );
+    } else {
+      // Fallback: Default square crop centered in the image
+      final int shortSide = min(decoded.width, decoded.height);
+      final int offsetX = (decoded.width - shortSide) ~/ 2;
+      final int offsetY = (decoded.height - shortSide) ~/ 2;
+
+      targetImage = img.copyCrop(
+        decoded,
+        x: offsetX,
+        y: offsetY,
+        width: shortSide,
+        height: shortSide,
+      );
+    }
+
+    // 2. Get the two score arrays from inference using target cropped image
+    final results = _runInference(targetImage);
     final diseaseScores = results['disease']!;
     final severityScores = results['severity']!;
     debugPrint("Disease scores : ${results['disease']}");
     debugPrint("Severity scores: ${results['severity']}");
+
     // 3. Find the highest confidence for disease
     int bestDiseaseIdx = 0;
     double maxDiseaseConf = 0.0;
@@ -117,6 +148,7 @@ class CacaoModelService {
       }
     }
 
+    // 4. Find the highest confidence for severity
     int bestSeverityIdx = 0;
     double maxSeverityConf = 0.0;
     for (int i = 0; i < severityScores.length; i++) {
@@ -143,25 +175,27 @@ class CacaoModelService {
     final inputTensor = _interpreter!.getInputTensor(0);
     final shape = inputTensor.shape; 
 
-    final int h = shape[1];
-    final int w = shape[2];
+    final int h = shape[1]; // Dynamically reads model input height (e.g., 384)
+    final int w = shape[2]; // Dynamically reads model input width (e.g., 384)
 
     final resized = img.copyResize(image, width: w, height: h);
 
-    // Build the 4D input array
-    final input = [
-      List.generate(
-        h,
-        (y) => List.generate(w, (x) {
-          final pixel = resized.getPixel(x, y);
-          return [
-            pixel.r.toDouble(),
-            pixel.g.toDouble(),
-            pixel.b.toDouble(),
-          ];
-        }),
-      )
-    ];
+    // ============================================================
+    // OPTIMIZED TENSOR BUILDING WITH FLOAT32LIST
+    // ============================================================
+    final floatInput = Float32List(1 * h * w * 3);
+    int bufferIndex = 0;
+
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        final pixel = resized.getPixel(x, y);
+        floatInput[bufferIndex++] = pixel.r.toDouble();
+        floatInput[bufferIndex++] = pixel.g.toDouble();
+        floatInput[bufferIndex++] = pixel.b.toDouble();
+      }
+    }
+
+    final input = floatInput.reshape([1, h, w, 3]);
 
     int out0Length = _interpreter!.getOutputTensor(0).shape[1];
 
