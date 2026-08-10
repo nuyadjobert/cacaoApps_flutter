@@ -78,11 +78,6 @@ class _VerifySuccessScreenState extends State<VerifySuccessScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back,
-                        color: Colors.black87, size: 22),
-                  ),
                   const Spacer(),
                   Row(
                     mainAxisSize: MainAxisSize.min,

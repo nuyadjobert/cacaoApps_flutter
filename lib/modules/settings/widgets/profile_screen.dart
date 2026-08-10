@@ -97,7 +97,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     TopToast.show(context, "Saving changes...");
 
     try {
-      await controller.updateProfile(
+      final result = await controller.updateProfile(
         name: _nameController.text.trim() != (currentUser.name ?? "")
             ? _nameController.text.trim()
             : null,
@@ -111,7 +111,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       );
 
       if (!mounted) return;
-      TopToast.show(context, "Profile updated successfully!");
+
+      // Show appropriate message based on result
+      switch (result) {
+        case ProfileUpdateResult.successOnline:
+          TopToast.show(context, "✅ Profile updated successfully!");
+          break;
+        case ProfileUpdateResult.savedOffline:
+          TopToast.show(
+            context,
+            "💾 Changes saved offline. They will sync automatically when you're connected.",
+          );
+          break;
+        case ProfileUpdateResult.error:
+          TopToast.show(
+            context,
+            "❌ Failed to update profile. Please try again.",
+          );
+          break;
+      }
 
       setState(() {
         _isEditing = false;

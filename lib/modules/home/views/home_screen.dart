@@ -124,8 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
         systemNavigationBarColor: surfaceCard,
         systemNavigationBarIconBrightness:
@@ -157,7 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SettingsScreen(),
               ],
             ),
-
             if (_isLoading)
               Positioned.fill(
                 child: Container(
@@ -178,32 +176,33 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-
         floatingActionButton: Padding(
           padding: const EdgeInsets.only(top: 30),
           child: SizedBox(
-            height: 54,
-            width: 54,
+            height: 56, // Slightly increased for a better touch target
+            width: 56,
             child: FloatingActionButton(
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ScannerScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const ScannerScreen()),
                 );
               },
               backgroundColor: const Color(0xFF2D6A4F),
               elevation: 5,
               shape: const CircleBorder(),
+              tooltip: 'Detect Cacao Disease', // Added for UX & accessibility
               child: const Icon(
-                Icons.qr_code_scanner,
+                Icons
+                    .camera_enhance_rounded, // Replaced QR icon with Smart Camera icon
                 color: Colors.white,
-                size: 24,
+                size: 28, // Made slightly larger for emphasis
               ),
             ),
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
         bottomNavigationBar: BottomAppBar(
           color: surfaceCard,
           shape: const CircularNotchedRectangle(),
@@ -244,8 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildNavItem(
                   3,
-                  Icons.tune_rounded,
-                  Icons.settings_input_component_rounded,
+                  Icons.settings_rounded,
+                  Icons.settings_rounded,
                   "Settings",
                   accent,
                   navInactiveIcon,

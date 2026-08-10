@@ -19,7 +19,6 @@ class _StatisticsReportScreenState extends State<StatisticsReportScreen> {
   @override
   void initState() {
     super.initState();
-    // Load statistics if not already loaded
     if (widget.controller.statsLoadState == StatisticsLoadState.initial) {
       widget.controller.loadStatistics();
     }
@@ -540,7 +539,7 @@ class _StatisticsReportScreenState extends State<StatisticsReportScreen> {
               _buildDiseaseRow(
                 'Black Pod Disease',
                 counts.blackPodDisease,
-                Colors.brown,
+                Colors.red,
                 textPrimary,
                 textSecondary,
               ),
@@ -548,7 +547,7 @@ class _StatisticsReportScreenState extends State<StatisticsReportScreen> {
               _buildDiseaseRow(
                 'Mealybug',
                 counts.mealybug,
-                Colors.purple,
+                Colors.blueAccent,
                 textPrimary,
                 textSecondary,
               ),
@@ -556,7 +555,7 @@ class _StatisticsReportScreenState extends State<StatisticsReportScreen> {
               _buildDiseaseRow(
                 'Cacao Pod Borer',
                 counts.cacaoPodBorer,
-                Colors.orange,
+                Colors.yellowAccent,
                 textPrimary,
                 textSecondary,
               ),
