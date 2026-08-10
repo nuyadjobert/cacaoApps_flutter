@@ -13,11 +13,11 @@ class SyncTrigger {
   bool _running = false;
   late final ScanSyncService _scanSync;
   
-  // 2. Initialize the Scan Repository
   final ScanRepository _scanRepository = ScanRepository();
 
-  SyncTrigger() {
-    // 3. Pass the repository into the sync service instead of the raw D
+  Function()? onSyncComplete;
+
+  SyncTrigger({this.onSyncComplete}) {
     _scanSync = ScanSyncService(dio: DioClient.dio, scanRepository: _scanRepository);
   }
 
@@ -26,7 +26,6 @@ class SyncTrigger {
 
     _trySync();
 
-    // Listen to changes with a small debounce to avoid flicker
     _sub = Connectivity().onConnectivityChanged
         .where((results) => results.any((r) => r != ConnectivityResult.none))
         .debounceTime(const Duration(seconds: 2)) 
@@ -63,6 +62,12 @@ class SyncTrigger {
       }
 
       await _scanSync.syncPendingScans();
+
+      // Call the callback after successful sync
+      if (onSyncComplete != null) {
+        developer.log('📊 Triggering statistics refresh', name: 'SyncTrigger');
+        onSyncComplete!();
+      }
     } catch (e) {
       developer.log('❌ Sync trigger error', name: 'SyncTrigger', error: e);
     } finally {
@@ -103,6 +108,13 @@ class SyncTrigger {
       }
 
       await _scanSync.syncPendingScans();
+
+      // Call the callback after successful sync
+      if (onSyncComplete != null) {
+        developer.log('📊 Triggering statistics refresh', name: 'SyncTrigger');
+        onSyncComplete!();
+      }
+
       return true; // Sync successful
     } catch (e) {
       developer.log('❌ Sync trigger error', name: 'SyncTrigger', error: e);

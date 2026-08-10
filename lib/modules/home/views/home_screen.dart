@@ -51,7 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // Using controller methods instead of handling it directly in view
     _controller.startSync();
     _controller.checkPendingScans();
-    _controller. syncGuideData();
+    _controller.syncGuideData();
+
+    // Load scan statistics
+    _controller.loadStatistics();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -426,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const TotalScannedCard(),
+                  TotalScannedCard(controller: _controller),
                   const SizedBox(height: 100),
                 ],
               ),
