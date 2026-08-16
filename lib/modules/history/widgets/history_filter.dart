@@ -16,7 +16,7 @@ class HistoryFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filters = ["All Scans", "Infected", "Healthy", "Treated"];
+    final filters = ["All Scans", "Infected", "Healthy"];
 
     return SizedBox(
       height: 45, // Slightly increased height for better tap targets

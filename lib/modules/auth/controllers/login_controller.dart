@@ -26,8 +26,6 @@ class LoginController {
   }
 
   bool validate() {
-    debugPrint('VALIDATE pressed. controller=${identityHashCode(emailController)} text="${emailController.text}" modelEmail="${model.email}"');
-
     final e = emailController.text.trim();
     model.email = e;
 

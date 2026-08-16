@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class ScanUnsuccessfulScreen extends StatelessWidget {
-  const ScanUnsuccessfulScreen({super.key});
+  final String title;
+  final String message;
+
+  const ScanUnsuccessfulScreen({
+    super.key,
+    this.title = "RESULT UNCLEAR",
+    this.message =
+      "We couldn't clearly identify the condition of this cacao pod. "
+      "Please check the tips below and scan the pod again.",
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,10 +28,11 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withAlpha(26),//0.1* 255 = 25.5 ~ 26
+                  color: Colors.redAccent.withAlpha(26), //0.1* 255 = 25.5 ~ 26
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.redAccent.withAlpha(76), // 0.3 * 255 = 76.5 ~ 77
+                    color:
+                        Colors.redAccent.withAlpha(76), // 0.3 * 255 = 76.5 ~ 77
                     width: 2,
                   ),
                 ),
@@ -33,11 +43,11 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Title
-              const Text(
-                "SCAN UNSUCCESSFUL",
-                style: TextStyle(
+              Text(
+                title,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -45,10 +55,10 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Subtitle
               Text(
-                "Please retake the scanning. We could not confidently identify a valid cacao pod.",
+                message,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withAlpha(178), // 0.7 * 255 = 178.5 ~ 178
@@ -57,14 +67,16 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Instruction Checklist Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(26), // 0.1 * 255 = 25.5 ~ 26
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withAlpha(77)), // 0.3 * 255 = 76.5 ~ 77
+                  border: Border.all(
+                      color:
+                          Colors.white.withAlpha(77)), // 0.3 * 255 = 76.5 ~ 77
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,18 +90,22 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildTipRow(Icons.check_circle_outline, "Scan only one cacao pod"),
+                    _buildTipRow(
+                        Icons.check_circle_outline, "Scan only one cacao pod"),
                     const SizedBox(height: 12),
-                    _buildTipRow(Icons.check_circle_outline, "Keep the pod in the center"),
+                    _buildTipRow(Icons.check_circle_outline,
+                        "Keep the entire pod visible and centered"),
                     const SizedBox(height: 12),
-                    _buildTipRow(Icons.check_circle_outline, "Move closer to the pod"),
+                    _buildTipRow(
+                        Icons.check_circle_outline, "Make sure the camera is clear and in focus"),
                     const SizedBox(height: 12),
-                    _buildTipRow(Icons.check_circle_outline, "Use good lighting"),
+                    _buildTipRow(
+                        Icons.check_circle_outline, "Use good lighting and Avoid shadows and Glare"),
                   ],
                 ),
               ),
               const Spacer(),
-              
+
               // Try Again Button
               SizedBox(
                 width: double.infinity,
@@ -121,7 +137,6 @@ class ScanUnsuccessfulScreen extends StatelessWidget {
     );
   }
 
-  // Helper widget to build the checklist rows cleanly
   Widget _buildTipRow(IconData icon, String text) {
     return Row(
       children: [

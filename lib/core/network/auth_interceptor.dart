@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 
 class AuthInterceptor extends Interceptor {
   final Future<String?> Function() getToken;
@@ -18,10 +17,6 @@ class AuthInterceptor extends Interceptor {
 
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
-
-      debugPrint('🔐 Token attached');
-    } else {
-      debugPrint('⚠️ No token found for request: ${options.path}');
     }
 
     handler.next(options);

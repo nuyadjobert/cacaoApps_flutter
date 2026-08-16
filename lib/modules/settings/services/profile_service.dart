@@ -1,9 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:cacao_apps/core/network/server_reachability_service.dart';
 
 class ProfileService {
   final Dio dio;
+  late final ServerReachabilityService _serverReachability;
 
-  ProfileService({required this.dio});
+  ProfileService({required this.dio}) {
+    _serverReachability = ServerReachabilityService(dio: dio);
+  }
 
   /// Update user profile on the backend
   /// Throws DioException on failure
@@ -31,34 +36,49 @@ class ProfileService {
       return; // Nothing to update
     }
 
-    final response = await dio.put(
-      '/api/theobrotect/users/$userId',
-      data: payload,
-    );
+    final endpoint = '/api/theobrotect/users/$userId';
+    debugPrint('[ProfileService] PATCH $endpoint payload=$payload');
 
-    if (response.statusCode != 200) {
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-        error: 'Failed to update profile: ${response.statusCode}',
+    try {
+      final response = await dio.patch(
+        endpoint,
+        data: payload,
       );
+
+      final statusCode = response.statusCode;
+      final hasAuthHeader =
+          response.requestOptions.headers.containsKey('Authorization');
+      debugPrint(
+        '[ProfileService] Response status=$statusCode '
+        'authenticated=$hasAuthHeader data=${response.data}',
+      );
+
+      if (statusCode == null || statusCode < 200 || statusCode >= 300) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: 'Failed to update profile: $statusCode',
+        );
+      }
+    } on DioException catch (error) {
+      final hasAuthHeader =
+          error.requestOptions.headers.containsKey('Authorization');
+      debugPrint(
+        '[ProfileService] Update failed status=${error.response?.statusCode} '
+        'authenticated=$hasAuthHeader data=${error.response?.data} '
+        'error=${error.message}',
+      );
+      rethrow;
     }
   }
 
   /// Check if the backend server is reachable
   Future<bool> isServerReachable() async {
-    try {
-      final response = await dio.head(
-        '/api/theobrotect/test',
-        options: Options(
-          sendTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
-        ),
-      );
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
+    final reachable = await _serverReachability.isReachable();
+    debugPrint(
+      '[ProfileService] Server is ${reachable ? 'reachable' : 'unreachable'}',
+    );
+    return reachable;
   }
 }

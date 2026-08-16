@@ -1,0 +1,229 @@
+# Actual Scanner and Image-Capture Requirements
+
+  This documents only behavior present in the current code and deployed
+  TFLite model.
+
+  ## Camera configuration
+
+  Defined in lib/modules/scan/controllers/scanner_controller.dart:60:
+
+   Setting                      Actual implementation
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Camera selection             availableCameras()[0]; lens direction is
+                                not explicitly selected
+  ───────────────────────────  ─────────────────────────────────────────────
+   Resolution preset            ResolutionPreset.high
+  ───────────────────────────  ─────────────────────────────────────────────
+   Approximate preset target    Approximately 720p, but the camera plugin
+                                treats this as a target and may select a
+                                higher or lower supported resolution
+  ───────────────────────────  ─────────────────────────────────────────────
+   Exact captured resolution    Not fixed, checked, or logged by the
+                                application
+  ───────────────────────────  ─────────────────────────────────────────────
+   Audio                        Disabled with enableAudio: false
+  ───────────────────────────  ─────────────────────────────────────────────
+   Orientation                  Application is restricted to portrait-up
+                                and portrait-down
+  ───────────────────────────  ─────────────────────────────────────────────
+   Capture mode                 Still image through takePicture()
+  ───────────────────────────  ─────────────────────────────────────────────
+   Camera dependency            camera 0.12.0+1
+  ───────────────────────────  ─────────────────────────────────────────────
+   Android implementation       CameraX dependency
+  ───────────────────────────  ─────────────────────────────────────────────
+   iOS implementation           AVFoundation dependency
+
+  No physical phone model, camera sensor specification, lens, megapixel
+  requirement, or testing device is documented in the repository.
+
+  ### Implemented camera features
+
+  - Runtime camera-permission request.
+  - Live camera preview.
+  - Tap-to-focus using normalized screen coordinates.
+  - Tap-to-exposure-point using the same coordinates.
+  - Torch flash toggle.
+  - Flash is turned off after capture and during controller disposal.
+  - Capture is disabled while analysis is already running.
+  - Model and camera must both initialize before capture is allowed.
+
+  The code does not configure or enforce:
+
+  - Camera zoom.
+  - Minimum focus distance.
+  - Autofocus mode.
+  - Exposure compensation.
+  - White balance.
+  - ISO or shutter speed.
+  - Frame rate.
+  - Image compression quality.
+  - A specific image format.
+  - A specific rear-facing camera.
+
+  Focus, exposure-point, and torch support depend on the selected camera
+  hardware. No capability check is performed before invoking them.
+
+  ## Resolution and ML input
+
+  The captured photo remains at the device-selected resolution until
+  preprocessing.
+
+  The deployed model assets/models/final_ft_model2.5.tflite has this actual
+  input tensor:
+
+  Shape: [1, 360, 360, 3]
+  Type: float32
+  Quantization: none
+  Channels: RGB
+
+  Therefore, the ML model’s standard input resolution is:
+
+  360 × 360 pixels
+
+  The 384 value in the source comment is only an example and is not the
+  deployed model’s resolution. The implementation dynamically reads the
+  model tensor dimensions in lib/core/ml/cacao_model_service.dart:154.
+
+  ## Implemented image-quality checks
+
+  Quality validation occurs before inference in lib/modules/scan/
+  controllers/scanner_controller.dart:178.
+
+  The complete captured image is resized to 320 pixels wide, preserving its
+  aspect ratio. The checks use this resized image—not the 360×360 model
+  input and not the visible scanner overlay.
+
+   Check                 Implemented rule
+  ━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Image decoding        Reject if the captured file cannot be decoded
+  ────────────────────  ───────────────────────────────────────────────
+   Average brightness    Reject below 45.0
+  ────────────────────  ───────────────────────────────────────────────
+   Excess brightness     Reject above 220.0
+  ────────────────────  ───────────────────────────────────────────────
+   Sharpness             Reject below 8.0
+  ────────────────────  ───────────────────────────────────────────────
+   Processing failure    Reject if quality analysis throws an error
+
+  Accepted ranges are:
+
+  Brightness: 45.0 through 220.0, inclusive
+  Sharpness: 8.0 or greater
+
+  ### Brightness calculation
+
+  Every pixel is converted to luminance using:
+
+  0.299 × red + 0.587 × green + 0.114 × blue
+
+  The application averages this value across the full resized image.
+
+  ### Sharpness calculation
+
+  Sharpness is the average of:
+
+  |current luminance − right-neighbor luminance|
+  +
+  |current luminance − bottom-neighbor luminance|
+
+  This is a simple adjacent-pixel edge measurement, not a Laplacian,
+  autofocus-confidence, or motion-sensor measurement.
+
+  ### Checks that do not exist
+
+  There is no implemented check for:
+
+  - Localized glare or reflections.
+  - Shadows.
+  - Contrast.
+  - Color balance.
+  - Noise.
+  - Motion during capture.
+  - Pod size within the frame.
+  - Pod centering.
+  - Number of pods.
+  - Background clutter.
+  - Camera-to-pod distance.
+  - Minimum source resolution.
+  - Occlusion.
+  - Whether the complete pod is visible.
+
+  The unsuccessful-screen instruction to avoid shadows and glare is guidance
+  only. A sufficiently large glare area might raise average brightness above
+  220, but glare itself is not detected.
+
+  ## Lighting requirements
+
+  ### Enforced by code
+
+  - Average luminance below 45.0 is considered too dark.
+  - Average luminance above 220.0 is considered too bright.
+  - Values from 45.0 through 220.0 pass the brightness gate.
+
+  The app suggests using flash or moving to a brighter area for dark images
+  and avoiding direct sunlight for bright images.
+
+  ### Recommendation only
+
+  “Use good lighting” and “avoid shadows and glare” appear in UI
+  instructions, but shadows and glare are not independently measured.
+
+  ## Positioning and distance
+
+  ### Recommendation only
+
+  The scanner UI displays:
+
+  CENTER POD INSIDE FRAME
+  Distance: ~30cm
+  Tap screen to focus
+
+  The visual guide is a centered 280 × 440 logical-pixel rounded rectangle
+  in lib/modules/scan/views/scanner_screen.dart:21.
+
+  The recommended capture setup is therefore:
+
+  - Approximately 30 cm from the cacao pod.
+  - Entire pod visible.
+  - Pod centered inside the guide.
+  - Tap the pod to set focus and exposure.
+  - Hold the phone steady.
+
+  ### Not enforced
+
+  The application does not measure the 30 cm distance, pod dimensions,
+  centering, or overlay occupancy. There is no depth sensor, autofocus-
+  distance reading, object bounding box, or geometric validation.
+
+  Importantly, the visible 280 × 440 overlay is not used as the inference
+  crop.
+
+  ## Image preprocessing and inference transformations
+
+  The current scan screen calls captureAndAnalyze() without a crop
+  rectangle. Consequently, the standard path is:
+
+  1. Capture the full image.
+  2. Decode it with the image package.
+  3. Run quality checks on a 320-pixel-wide copy of the full image.
+  4. Create a centered square crop from the original decoded image:
+      - Side length is the shorter original dimension.
+      - Excess width or height is removed equally from opposite sides.
+
+  5. Resize the square crop to 360 × 360.
+  6. Copy RGB channels into a float32 tensor in [1, 360, 360, 3] order.
+  7. Submit raw channel values in the 0–255 range.
+
+  The Dart code does not normalize the RGB values itself. However, the
+  deployed model contains embedded preprocessing layers that:
+
+  1. Multiply RGB values by 1/255.
+  2. Subtract ImageNet channel means:
+
+  [0.485, 0.456, 0.406]
+
+  3. Divide by ImageNet standard deviations, represented internally by
+     multiplication with approximately:
+
+  [4.366812, 4.464286, 4.444445]

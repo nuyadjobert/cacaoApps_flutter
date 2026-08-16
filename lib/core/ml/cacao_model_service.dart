@@ -42,29 +42,13 @@ class CacaoModelService {
     if (_isLoaded) return;
 
     try {
-      debugPrint("Loading TFLite model...");
-
       _interpreter = await Interpreter.fromAsset(
         'assets/models/final_ft_model2.5.tflite',
         options: InterpreterOptions()..threads = Platform.numberOfProcessors,
       );
     //the 2.3 is good
       _isLoaded = true;
-
-      for (int i = 0; i < _interpreter!.getOutputTensors().length; i++) {
-        final tensor = _interpreter!.getOutputTensor(i);
-
-        debugPrint("Output $i");
-        debugPrint("shape : ${tensor.shape}");
-        debugPrint("name  : ${tensor.name}");
-      }
-
-      debugPrint("✅ Model loaded successfully.");
-    } catch (e, s) {
-      debugPrint("❌ Failed to load model");
-      debugPrint(e.toString());
-      debugPrint(s.toString());
-
+    } catch (e) {
       rethrow;
     }
   }
@@ -135,8 +119,6 @@ class CacaoModelService {
     final results = _runInference(targetImage);
     final diseaseScores = results['disease']!;
     final severityScores = results['severity']!;
-    debugPrint("Disease scores : ${results['disease']}");
-    debugPrint("Severity scores: ${results['severity']}");
 
     // 3. Find the highest confidence for disease
     int bestDiseaseIdx = 0;
@@ -164,9 +146,6 @@ class CacaoModelService {
       diseaseConfidence: maxDiseaseConf,
       severityConfidence: maxSeverityConf,
     );
-
-    debugPrint(
-        "PREDICTION: ${prediction.diseaseLabel} (${(maxDiseaseConf * 100).toStringAsFixed(1)}%) | ${prediction.severityLabel} (${(maxSeverityConf * 100).toStringAsFixed(1)}%)");
 
     return [prediction];
   }

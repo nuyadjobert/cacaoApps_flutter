@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _controller.fetchData(index);
     } catch (e) {
-      debugPrint("Navigation Error: $e");
+      // Error handled silently
     } finally {
       if (mounted) {
         _pageController.jumpToPage(index);

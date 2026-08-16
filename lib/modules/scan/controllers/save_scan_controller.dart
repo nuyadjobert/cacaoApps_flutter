@@ -111,11 +111,6 @@ class SaveScanController extends ChangeNotifier {
         updatedAt: null,
       );
 
-      debugPrint('Disease: $diseaseKey');
-      debugPrint('Severity: $severityKey');
-      debugPrint('rescanAfterDays = $rescanAfterDays');
-      debugPrint('nextScanAt = $nextScanAt');
-
       await _notificationService.scheduleNotification(
         localId: localId,
         userId: userId,
@@ -124,10 +119,6 @@ class SaveScanController extends ChangeNotifier {
         scannedAt: now,
         nextScanAt: nextScanAt,
       );
-
-      final saved = await _scanRepoServices.getScanByLocalId(localId);
-      debugPrint('Saved scan row: $saved');
-      debugPrint("Logged user: ${u.userId} | ${u.name} | ${u.email}");
 
       _isSaved = true;
       _isSaving = false;
