@@ -10,7 +10,6 @@ import 'package:cacao_apps/core/sync/sync_trigger.dart';
 import 'package:cacao_apps/core/db/cacao_guide_repository.dart';
 import 'package:cacao_apps/core/db/guide_sync_service.dart';
 import 'package:cacao_apps/core/network/client.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cacao_apps/core/db/database_helper.dart';
 import 'package:cacao_apps/modules/home/models/disease_counts_model.dart';
 import 'package:cacao_apps/modules/home/services/statistics_service.dart';
@@ -61,19 +60,19 @@ class HomeController extends ChangeNotifier {
       final rawData = await db.query('guide_diseases');
 
       if (rawData.isEmpty) {
-        Fluttertoast.showToast(msg: "Database is empty!");
         return;
       }
 
-      final diseaseList = rawData.map((row) => row['disease_key']).join(', ');
+      rawData.map((row) => row['disease_key']).join(', ');
 
-      Fluttertoast.showToast(
-        msg: "✅ DB has ${rawData.length} diseases: $diseaseList",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
+      // Fluttertoast.showToast(
+      //   msg: "✅ DB has ${rawData.length} diseases: $diseaseList",
+      //   toastLength: Toast.LENGTH_LONG,
+      //   gravity: ToastGravity.BOTTOM,
+      // );
+
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error reading DB: $e");
+      // Fluttertoast.showToast(msg: "Error reading DB: $e");
     }
   }
 
