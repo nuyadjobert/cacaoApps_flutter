@@ -1,12 +1,10 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:cacao_apps/core/db/scan_repository.dart';
 class HistoryService {
   // 2. Initialize the repository
   final ScanRepository _scanRepository = ScanRepository();
 
   Future<List<Map<String, dynamic>>> getHistoryByUserId(String userId) async {
-    debugPrint('Fetching history for UserID: $userId');
     // 3. Ask the repository for the data
     return await _scanRepository.getHistoryByUserId(userId);
   }
@@ -18,10 +16,9 @@ class HistoryService {
       final file = File(imagePath);
       if (await file.exists()) {
         await file.delete();
-        debugPrint('Image file deleted: $imagePath');
       }
     } catch (e) {
-      debugPrint('Error deleting image file: $e');
+      // Error handled silently
     }
   }
 

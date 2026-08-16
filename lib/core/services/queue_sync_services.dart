@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../db/sync_queue_reporitory.dart';
 import '../model/sync_queue.model.dart';
 
@@ -17,7 +16,6 @@ class QueueSyncService {
       final jobs = await queueRepository.getPendingJobs();
 
       if (jobs.isEmpty) {
-        debugPrint("No pending sync jobs.");
         return true;
       }
 
@@ -30,10 +28,8 @@ class QueueSyncService {
           await queueRepository.incrementRetry(job.id);
         }
       }
-
       return true;
     } catch (e) {
-      debugPrint("Queue Sync Error: $e");
       return false;
     }
   }
@@ -42,25 +38,27 @@ class QueueSyncService {
     switch (job.tableName) {
       case "users":
         return _syncUser(job);
-
-
       default:
-        debugPrint("Unknown queue type.");
         return false;
     }
   }
 
   Future<bool> _syncUser(SyncQueue job) async {
+    final endpoint = '/api/theobrotect/users/${job.recordId}';
     try {
-      await dio.put(
-        "/api/theobrotect/users/${job.recordId}",
+      final response = await dio.patch(
+        endpoint,
         data: job.payload,
       );
 
-      return true;
-    } on DioException {
+      final statusCode = response.statusCode;
+          response.requestOptions.headers.containsKey('Authorization');
+      return statusCode != null && statusCode >= 200 && statusCode < 300;
+    } on DioException catch (error) {
+
+          error.requestOptions.headers.containsKey('Authorization');
+
       return false;
     }
   }
-
 }

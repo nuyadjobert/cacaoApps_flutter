@@ -37,8 +37,7 @@ class AccountSettingsCard extends StatelessWidget {
               title: "My Profile",
               textPrimary: textPrimary,
               onTap: onProfileTap,
-              trailing:
-                  Icon(Icons.chevron_right_rounded, color: textSecondary),
+              trailing: Icon(Icons.chevron_right_rounded, color: textSecondary),
             ),
             SettingsTileDivider(color: dividerColor),
             ValueListenableBuilder<ThemeMode>(
@@ -50,8 +49,7 @@ class AccountSettingsCard extends StatelessWidget {
                   iconColor: const Color(0xFF378ADD),
                   title: "Dark Mode",
                   textPrimary: textPrimary,
-                  onTap: () =>
-                      ThemeController.instance.setDarkMode(!isDarkNow),
+                  onTap: () => ThemeController.instance.setDarkMode(!isDarkNow),
                   trailing: Switch.adaptive(
                     value: isDarkNow,
                     onChanged: (v) => ThemeController.instance.setDarkMode(v),

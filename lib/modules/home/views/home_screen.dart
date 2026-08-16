@@ -26,9 +26,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final GlobalKey _profileKey = GlobalKey();
   final GlobalKey _catalogKey = GlobalKey();
   final GlobalKey _scannerKey = GlobalKey();
+  final GlobalKey _notificationsKey = GlobalKey();
+  final GlobalKey _settingsKey = GlobalKey();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final HomeController _controller = HomeController();
@@ -38,6 +39,13 @@ class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
 
   bool _isLoading = false;
+
+  List<GlobalKey> get _homeTutorialTargets => <GlobalKey>[
+        _catalogKey,
+        _scannerKey,
+        _notificationsKey,
+        _settingsKey,
+      ];
 
   @override
   void initState() {
@@ -58,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ShowcaseView.get().startShowCase([_profileKey, _catalogKey, _scannerKey]);
+      ShowcaseView.get().startShowCase(_homeTutorialTargets);
     });
   }
 
@@ -89,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _controller.fetchData(index);
     } catch (e) {
-      debugPrint("Navigation Error: $e");
+      // Error handled silently
     } finally {
       if (mounted) {
         _pageController.jumpToPage(index);
@@ -249,6 +257,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   accent,
                   navInactiveIcon,
                   navInactiveText,
+                  tutorialKey: _settingsKey,
+                  tutorialTitle: 'Settings',
+                  tutorialDescription:
+                      'Manage app options, account settings, and your profile here.',
                 ),
               ],
             ),
@@ -265,10 +277,13 @@ class _HomeScreenState extends State<HomeScreen> {
     String label,
     Color activeColor,
     Color? inactiveIconColor,
-    Color? inactiveTextColor,
-  ) {
-    bool isActive = _bottomNavIndex == index;
-    return GestureDetector(
+    Color? inactiveTextColor, {
+    GlobalKey? tutorialKey,
+    String? tutorialTitle,
+    String? tutorialDescription,
+  }) {
+    final bool isActive = _bottomNavIndex == index;
+    final Widget navItem = GestureDetector(
       onTap: () => _handleNavigation(index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -291,6 +306,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+
+    if (tutorialKey == null) return navItem;
+
+    return Showcase(
+      key: tutorialKey,
+      title: tutorialTitle,
+      description: tutorialDescription,
+      child: navItem,
+    );
   }
 
   Widget _buildHomeContent({
@@ -311,30 +335,24 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    Showcase(
-                      key: _profileKey,
-                      title: 'Your Profile',
-                      description:
-                          'Manage your farm settings and account details here.',
-                      child: GestureDetector(
-                        onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.green.withAlpha(
-                                (0.2 * 255).toInt(),
-                              ),
-                              width: 2,
+                    GestureDetector(
+                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.green.withAlpha(
+                              (0.2 * 255).toInt(),
                             ),
+                            width: 2,
                           ),
-                          child: CircleAvatar(
-                            radius: 24,
-                            backgroundColor: avatarBg,
-                            child: Icon(
-                              Icons.person_outline,
-                              color: avatarIconColor,
-                            ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: avatarBg,
+                          child: Icon(
+                            Icons.person_outline,
+                            color: avatarIconColor,
                           ),
                         ),
                       ),
@@ -362,18 +380,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationScreen(),
-                          ),
-                        );
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: NotificationIcon(),
+                    Showcase(
+                      key: _notificationsKey,
+                      title: 'Notifications',
+                      description:
+                          'View important updates, scan reminders, and alerts that may need your attention.',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: NotificationIcon(),
+                        ),
                       ),
                     ),
                   ],

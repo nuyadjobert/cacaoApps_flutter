@@ -437,10 +437,6 @@ class _LearnHubScreenState extends State<LearnHubScreen> {
     Color textPrimary,
   ) {
     final steps = ManagementData.content[category.lookupKey] ?? [];
-    if (steps.isEmpty) {
-      debugPrint(
-          'No ManagementData.content found for key "${category.lookupKey}"');
-    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -1,4 +1,3 @@
-import 'package:cacao_apps/core/guide/cacao_guide_service.dart';
 import 'package:flutter/material.dart';
 import 'save_scan_controller.dart';
 import 'package:cacao_apps/core/db/cacao_guide_repository.dart';
@@ -11,7 +10,6 @@ class ScanResultController extends ChangeNotifier {
   final String severity;
   final String? imagePath;
   final CacaoGuideRepository _repository = CacaoGuideRepository();
-  final CacaoGuideService _guide = CacaoGuideService();
   final SaveScanController saveScan = SaveScanController();
 
   ScanResultController({
@@ -38,10 +36,7 @@ class ScanResultController extends ChangeNotifier {
   late final String diseaseKey;
   late final String severityKey;
 
-  Map<String, String> displayName = const {
-    "en": "Unknown",
-    "tl": "Hindi Kilala",
-  };
+  Map<String, String> displayName = const {"en": "", "tl": ""};
   Map<String, String> description = const {"en": "", "tl": ""};
 
   List<RecommendationItem> recommendations = [];
@@ -49,7 +44,6 @@ class ScanResultController extends ChangeNotifier {
   Map<String, String>? rescanMessage;
 
   List<TreatmentTask> getTreatmentPlan(String lang) {
-    // Dynamically choose between Tagalog or English lists
     final items = recommendations
         .expand((e) => lang == 'tl' ? e.contentTl : e.contentEn)
         .toList();
@@ -80,6 +74,14 @@ class ScanResultController extends ChangeNotifier {
   bool get isBookmarked => saveScan.isSaved;
   bool get isNonCacao => diseaseKey == 'non_cacao';
   bool get isLowConfidence => confidence < 0.70;
+  bool get isUnsupportedDisease => diseaseKey == 'unsupported_disease';
+  bool get isUnrecognizedDisease => diseaseKey == 'unrecognized';
+  bool get hasUnsuccessfulResult =>
+      isLowConfidence ||
+      isUnsupportedDisease ||
+      isUnrecognizedDisease ||
+      hasInvalidSeverityMismatch ||
+      _error != null;
 
   void toggleBookmark() {
     // saveScan.toggleSaveRecord();
@@ -91,24 +93,31 @@ class ScanResultController extends ChangeNotifier {
     _error = null;
 
     diseaseKey = _diseaseKeyFromName(diseaseName);
+    debugPrint(
+      '[ScanResult] diseaseName="$diseaseName", diseaseKey="$diseaseKey", '
+      'confidence=${confidence.toStringAsFixed(4)}, severity="$severity"',
+    );
 
-    if (hasHighNonCacaoConfidence) {
+    if (isNonCacao) {
       _error = "NON_CACAO";
       _isLoading = false;
       notifyListeners();
       return;
     }
-    if (confidence < 0.70) {
-      _error = "LOW_CONFIDENCE";
+    if (isLowConfidence ||
+        isUnsupportedDisease ||
+        isUnrecognizedDisease ||
+        hasInvalidSeverityMismatch) {
+      _error = "UNSUCCESSFUL_SCAN";
       _isLoading = false;
       notifyListeners();
-      return; // Stop execution
+      return;
     }
     notifyListeners();
 
     try {
       severityKey = _severityKeyFromText(severity);
-      final disease = await _guide.getDisease(diseaseKey);
+      final disease = await _repository.getDisease(diseaseKey);
       if (disease == null) {
         throw Exception(
           'Disease not found in guide: $diseaseKey',
@@ -125,20 +134,14 @@ class ScanResultController extends ChangeNotifier {
         rescanMessage = Map<String, String>.from(
           monitoringPlan['message'] as Map,
         );
-
-        debugPrint('========== Monitoring Plan ==========');
-        debugPrint('Disease: $diseaseKey');
-        debugPrint('Severity: $severityKey');
-        debugPrint('Rescan After: $rescanAfterDays');
-        debugPrint('Preferred Hour: ${monitoringPlan['preferred_time_hour']}');
-        debugPrint('=====================================');
-      } else {
-        debugPrint('No monitoring plan found for $diseaseKey / $severityKey');
       }
 
       displayName = _mapLang(
         disease['display_name'],
       );
+      if (displayName.values.every((value) => value.trim().isEmpty)) {
+        throw StateError('Disease display name is missing: $diseaseKey');
+      }
 
       description = _mapLang(
         disease['description'],
@@ -173,13 +176,6 @@ class ScanResultController extends ChangeNotifier {
     }
   }
 
-  bool get hasHighNonCacaoConfidence {
-    if (diseaseKey == 'non_cacao' && confidence >= 0.50) {
-      return true;
-    }
-    return false;
-  }
-
   Future<bool> saveScanRecord({bool smsEnabled = false}) {
     return saveScan.saveScanRecord(
       diseaseKey: diseaseKey,
@@ -194,12 +190,26 @@ class ScanResultController extends ChangeNotifier {
 
   String _diseaseKeyFromName(String name) {
     final n = name.trim().toLowerCase();
-    if (n.contains('black pod')) return 'black_pod_disease';
-    if (n.contains('pod borer')) return 'cacao_pod_borer';
-    if (n.contains('mealybug')) return 'mealybug';
-    if (n.contains('healthy')) return 'healthy';
-    if (n.contains('non_cacao') || n.contains('non cacao')) return 'non_cacao';
-    return 'healthy';
+    switch (n) {
+      case 'black pod disease':
+      case 'black_pod_disease':
+        return 'black_pod_disease';
+      case 'cacao pod borer':
+      case 'cacao_pod_borer':
+        return 'cacao_pod_borer';
+      case 'mealybug':
+        return 'mealybug';
+      case 'healthy':
+        return 'healthy';
+      case 'non cacao':
+      case 'non_cacao':
+        return 'non_cacao';
+      case 'unsupported disease':
+      case 'unsupported_disease':
+        return 'unsupported_disease';
+      default:
+        return 'unrecognized';
+    }
   }
 
   String _severityKeyFromText(String severity) {
@@ -212,20 +222,17 @@ class ScanResultController extends ChangeNotifier {
 
   Map<String, String> _mapLang(dynamic node) {
     if (node is Map<String, dynamic>) {
+      final en = node['en']?.toString().trim() ?? '';
+      final tl = node['tl']?.toString().trim() ?? '';
       return {
-        'en': node['en']?.toString() ?? '',
-        'tl': node['tl']?.toString() ?? '',
+        'en': en.isNotEmpty ? en : tl,
+        'tl': tl.isNotEmpty ? tl : en,
       };
     }
     return {'en': '', 'tl': ''};
   }
 
   List<String> _listLang(dynamic node, String lang) {
-    debugPrint("==== _listLang ====");
-    debugPrint("LANG: $lang");
-    debugPrint("NODE TYPE: ${node.runtimeType}");
-    debugPrint("NODE VALUE: $node");
-
     final List<String> results = [];
 
     if (node is List) {
@@ -241,7 +248,6 @@ class ScanResultController extends ChangeNotifier {
           results.add(item);
         }
       }
-      debugPrint("LIST RESULT: $results");
       return results;
     }
 
@@ -264,14 +270,16 @@ class ScanResultController extends ChangeNotifier {
       }
     }
 
-    debugPrint("FINAL RESULT: $results");
     return results;
   }
 
   bool get hasInvalidSeverityMismatch {
-    bool isDisease = diseaseName != 'healthy' && diseaseName != 'non_cacao' && diseaseName != 'unsupported_disease';
-    bool isSeverityNone = severity.toLowerCase() == 'none';
-    
+    final isDisease = diseaseKey != 'healthy' &&
+        diseaseKey != 'non_cacao' &&
+        diseaseKey != 'unsupported_disease' &&
+        diseaseKey != 'unrecognized';
+    final isSeverityNone = severity.trim().toLowerCase() == 'none';
+
     return isDisease && isSeverityNone;
   }
 }

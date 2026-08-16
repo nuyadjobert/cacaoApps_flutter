@@ -143,31 +143,6 @@ class ScannerController extends ChangeNotifier {
                 ? 'N/A'
                 : _capitalize(pred.severityLabel);
 
-        debugPrint('');
-        debugPrint('================ SCAN RESULT ================');
-
-        debugPrint(
-          '🧪 RAW DISEASE  : '
-          '${pred.diseaseLabel} '
-          '(${(pred.diseaseConfidence * 100).toStringAsFixed(2)}%)',
-        );
-
-        debugPrint(
-          '🧪 RAW SEVERITY : '
-          '${pred.severityLabel} '
-          '(${(pred.severityConfidence * 100).toStringAsFixed(2)}%)',
-        );
-
-        debugPrint(
-          '📱 UI DISEASE   : ${_toDisplayName(pred.diseaseLabel)}',
-        );
-
-        debugPrint(
-          '📱 UI SEVERITY  : $finalSeverity',
-        );
-
-        debugPrint('=============================================');
-
         return ScanResultModel(
           imagePath: imagePath,
           diseaseName: _toDisplayName(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../scan/views/scanner_screen.dart';
-import '../widgets/notification_card.dart';
-import '../controller/notification_controller.dart';
-import '../../../core/db/user_repository.dart';
+
 import '../../../core/db/scan_repository.dart';
+import '../../../core/db/user_repository.dart';
+import '../../scan/views/scanner_screen.dart';
+import '../controller/notification_controller.dart';
+import '../widgets/notification_card.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -14,107 +15,153 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   late final NotificationController controller;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-
     controller = NotificationController(ScanRepository());
-
+    controller.addListener(_refresh);
     _loadNotifications();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadNotifications() async {
     final user = await UserRepository().getCurrentUser();
+    if (!mounted) return;
 
-    if (!mounted || user == null) return;
+    if (user != null) {
+      await controller.loadNotifications(user.userId);
+    }
 
-    await controller.loadNotifications(user.userId);
+    if (mounted) setState(() => _isLoading = false);
+  }
 
-    setState(() {});
+  @override
+  void dispose() {
+    controller.removeListener(_refresh);
+    controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5FAF3),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: Colors.black, size: 20),
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          "Active Alerts",
-          style: TextStyle(
-            color: Color(0xFF1B4332),
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
+        title: Text(
+          'Notifications',
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: colors.onSurface,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
       ),
-      body: controller.alerts.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_none_rounded,
-                    size: 72,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No notifications today',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: colors.primary))
+          : controller.alerts.isEmpty
+              ? const _EmptyNotifications()
+              : RefreshIndicator(
+                  color: colors.primary,
+                  onRefresh: _loadNotifications,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'You have no active scan reminders.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              itemCount: controller.alerts.length,
-              itemBuilder: (context, index) {
-                final alert = controller.alerts[index];
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    itemCount: controller.alerts.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final Map<String, dynamic> alert =
+                          controller.alerts[index];
 
-                return NotificationCard(
-                  disease: alert['disease']!,
-                  severity: alert['severity']!,
-                  date: alert['date']!,
-                  onIgnore: () async {
-                    await controller.dismissAlert(index);
-                  },
-                  onRescan: () async {
-                    await controller.rescanAlert(index);
+                      return NotificationCard(
+                        disease: alert['disease']! as String,
+                        severity: alert['severity']! as String,
+                        date: alert['date']! as String,
+                        onIgnore: () async {
+                          await controller.dismissAlert(index);
+                        },
+                        onRescan: () async {
+                          await controller.rescanAlert(index);
 
-                    if (context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ScannerScreen(),
-                        ),
+                          if (context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ScannerScreen(),
+                              ),
+                            );
+                          }
+                        },
                       );
-                    }
-                  },
-                );
-              },
-            ),
+                    },
+                  ),
+                ),
+    );
+  }
+}
+
+class _EmptyNotifications extends StatelessWidget {
+  const _EmptyNotifications();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: colors.primary.withAlpha(24),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  size: 36,
+                  color: colors.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "You're all caught up",
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'New cacao scan reminders will appear here.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

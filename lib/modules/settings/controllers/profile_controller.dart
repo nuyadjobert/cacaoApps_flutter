@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:cacao_apps/core/db/user_repository.dart';
+import 'package:cacao_apps/core/db/sync_queue_reporitory.dart';
+import 'package:cacao_apps/core/model/user.model.dart';
 import 'package:cacao_apps/core/network/client.dart';
-import '../../../core/model/user.model.dart';
-import '../../../core/db/sync_queue_reporitory.dart';
+import 'package:cacao_apps/core/services/connectivity_service.dart';
 import '../services/profile_service.dart';
 
 enum ProfileUpdateResult {
@@ -16,6 +16,7 @@ enum ProfileUpdateResult {
 class UserProfileController extends ChangeNotifier {
   final UserRepository _repository = UserRepository();
   final SyncQueueRepository _syncQueueRepository = SyncQueueRepository();
+  final ConnectivityService _connectivityService = ConnectivityService();
   late final ProfileService _profileService;
 
   LocalUser? user;
@@ -55,8 +56,7 @@ class UserProfileController extends ChangeNotifier {
       return ProfileUpdateResult.successOnline; 
     }
 
-    final connectivity = await Connectivity().checkConnectivity();
-    final hasConnection = connectivity.any((r) => r != ConnectivityResult.none);
+    final hasConnection = await _connectivityService.hasConnection;
 
     ProfileUpdateResult result;
 
@@ -67,9 +67,9 @@ class UserProfileController extends ChangeNotifier {
         try {
           await _profileService.updateProfile(
             userId: user!.userId,
-            name: name,
-            address: address,
-            contactNumber: contactNumber,
+            name: name ?? user!.name,
+            address: address ?? user!.address,
+            contactNumber: contactNumber ?? user!.contactNumber,
           );
 
           await _repository.updateUser(
@@ -77,6 +77,16 @@ class UserProfileController extends ChangeNotifier {
             name: name,
             address: address,
             contactNumber: contactNumber,
+          );
+
+          await _syncQueueRepository.deletePending(
+            tableName: 'users',
+            recordId: user!.userId,
+            action: 'update',
+          );
+          debugPrint(
+            '[ProfileController] Server update confirmed; local profile '
+            'updated and pending sync cleared for user=${user!.userId}',
           );
 
           user = LocalUser(
@@ -91,12 +101,20 @@ class UserProfileController extends ChangeNotifier {
           result = ProfileUpdateResult.successOnline;
         } on DioException catch (e) {
           lastError = e.message;
+          debugPrint(
+            '[ProfileController] Server update failed; saving locally and '
+            'queueing retry. error=$lastError',
+          );
           
           // API failed, save offline
           await _saveOffline(name, address, contactNumber, payload);
           result = ProfileUpdateResult.savedOffline;
         } catch (e) {
           lastError = e.toString();
+          debugPrint(
+            '[ProfileController] Unexpected update error; saving locally and '
+            'queueing retry. error=$lastError',
+          );
           
           // Unexpected error, save offline
           await _saveOffline(name, address, contactNumber, payload);
@@ -144,6 +162,9 @@ class UserProfileController extends ChangeNotifier {
       action: 'update',
       payload: payload,
     );
-
+    debugPrint(
+      '[ProfileController] Local profile saved; pending sync queued '
+      'for user=${user!.userId} payload=$payload',
+    );
   }
 }

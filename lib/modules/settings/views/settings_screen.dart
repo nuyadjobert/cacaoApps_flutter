@@ -25,7 +25,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   File? _profileImage;
 
-
   @override
   void initState() {
     super.initState();
@@ -40,9 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadFarmStats() async {
     if (!mounted) return;
-    setState(() {
-
-    });
+    setState(() {});
   }
 
   Future<void> _navigateToProfile() async {
@@ -118,16 +115,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SettingsSectionLabel(label: "Account", textMuted: textMuted),
+                    SettingsSectionLabel(
+                        label: "Account", textMuted: textMuted),
                     const SizedBox(height: 8),
                     AccountSettingsCard(
                       cardBg: cardBg,
@@ -137,7 +133,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onProfileTap: _navigateToProfile,
                     ),
                     const SizedBox(height: 24),
-                    SettingsSectionLabel(label: "Support", textMuted: textMuted),
+                    SettingsSectionLabel(
+                        label: "Support", textMuted: textMuted),
                     const SizedBox(height: 8),
                     SupportSettingsCard(
                       cardBg: cardBg,

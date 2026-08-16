@@ -20,11 +20,20 @@ class SyncQueueRepository {
       limit: 1,
     );
 
+    final mergedPayload = <String, dynamic>{};
+    if (existing.isNotEmpty) {
+      final existingPayload = jsonDecode(existing.first['payload'] as String);
+      if (existingPayload is Map<String, dynamic>) {
+        mergedPayload.addAll(existingPayload);
+      }
+    }
+    mergedPayload.addAll(payload);
+
     final data = {
       'table_name': tableName,
       'record_id': recordId,
       'action': action,
-      'payload': jsonEncode(payload),
+      'payload': jsonEncode(mergedPayload),
       'status': 0,
       'retry_count': 0,
       'created_at': DateTime.now().toIso8601String(),
@@ -62,6 +71,19 @@ class SyncQueueRepository {
       'sync_queue',
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> deletePending({
+    required String tableName,
+    required String recordId,
+    required String action,
+  }) async {
+    final db = await _dbHelper.db;
+    await db.delete(
+      'sync_queue',
+      where: 'table_name = ? AND record_id = ? AND action = ? AND status = ?',
+      whereArgs: [tableName, recordId, action, 0],
     );
   }
 

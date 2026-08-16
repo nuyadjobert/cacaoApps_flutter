@@ -10,7 +10,6 @@ import 'package:cacao_apps/core/sync/sync_trigger.dart';
 import 'package:cacao_apps/core/db/cacao_guide_repository.dart';
 import 'package:cacao_apps/core/db/guide_sync_service.dart';
 import 'package:cacao_apps/core/network/client.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cacao_apps/core/db/database_helper.dart';
 import 'package:cacao_apps/modules/home/models/disease_counts_model.dart';
 import 'package:cacao_apps/modules/home/services/statistics_service.dart';
@@ -61,19 +60,19 @@ class HomeController extends ChangeNotifier {
       final rawData = await db.query('guide_diseases');
 
       if (rawData.isEmpty) {
-        Fluttertoast.showToast(msg: "Database is empty!");
         return;
       }
 
-      final diseaseList = rawData.map((row) => row['disease_key']).join(', ');
+      rawData.map((row) => row['disease_key']).join(', ');
 
-      Fluttertoast.showToast(
-        msg: "✅ DB has ${rawData.length} diseases: $diseaseList",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
+      // Fluttertoast.showToast(
+      //   msg: "✅ DB has ${rawData.length} diseases: $diseaseList",
+      //   toastLength: Toast.LENGTH_LONG,
+      //   gravity: ToastGravity.BOTTOM,
+      // );
+
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error reading DB: $e");
+      // Fluttertoast.showToast(msg: "Error reading DB: $e");
     }
   }
 
@@ -172,9 +171,8 @@ class HomeController extends ChangeNotifier {
       await _initializeAI();
 
       _isResourcesLoaded = true;
-      debugPrint("TheobroTect: Background services initialized.");
     } catch (e) {
-      debugPrint("TheobroTect Error: Failed to initialize services: $e");
+      // Error handled silently
     }
   }
 
@@ -189,16 +187,10 @@ class HomeController extends ChangeNotifier {
     }
 
     if (user == null) {
-      debugPrint("❌ [HOME] No user found");
       return;
     }
 
-    final pending = await scanRepository.getPendingScans(userId: user.userId);
-    debugPrint(" [HOME] Pending scans count: ${pending.length}");
-
-    for (var scan in pending) {
-      debugPrint(" [HOME] Pending local_id: ${scan['local_id']}");
-    }
+    await scanRepository.getPendingScans(userId: user.userId);
   }
 
   void startSync() => _syncTrigger.start();
@@ -207,10 +199,7 @@ class HomeController extends ChangeNotifier {
   // UPDATED: Sync and then verify
   Future<void> syncGuideData() async {
     try {
-      debugPrint('Starting guide data sync...');
       final syncSuccess = await _guideSyncService.fetchUpdatesFromServer();
-
-      debugPrint('Guide sync result: $syncSuccess');
 
       // If sync was successful, run our test to read from SQLite
       if (syncSuccess) {
@@ -219,28 +208,20 @@ class HomeController extends ChangeNotifier {
         await showDatabaseDebugToast();
       }
     } catch (e) {
-      debugPrint('Guide sync failed: $e');
+      // Error handled silently
     }
   }
 
   Future<void> _verifyLocalDatabase() async {
-    debugPrint('\n--- 🧪 TESTING LOCAL DATABASE SAVE ---');
-
-    // 1. Check total count
-    final count = await _guideRepo.getDiseaseCount();
-    debugPrint('Total diseases in SQLite: $count');
-
-    // 2. Fetch all raw rows directly to get the keys
+    // 1. Fetch all raw rows directly to get the keys
     final db = await DatabaseHelper().db;
     final rawDiseases = await db.query('guide_diseases');
 
     if (rawDiseases.isEmpty) {
-      debugPrint('❌ FAILED: No diseases found in SQLite.');
-      debugPrint('--------------------------------------\n');
       return;
     }
 
-    // 3. Loop through every disease found in the database
+    // 2. Loop through every disease found in the database
     for (var row in rawDiseases) {
       final String diseaseKey = row['disease_key'] as String;
 
@@ -248,23 +229,10 @@ class HomeController extends ChangeNotifier {
       final diseaseData = await _guideRepo.getDisease(diseaseKey);
 
       if (diseaseData != null) {
-        debugPrint('\n✅ Successfully found: $diseaseKey');
-        debugPrint(
-            '   Display Name (EN): ${diseaseData['display_name']['en']}');
-        debugPrint(
-            '   Display Name (TL): ${diseaseData['display_name']['tl']}');
-
         // Optional: Test fetching recommendations for this specific disease
-        final mildRecs =
-            await _guideRepo.getRecommendations(diseaseKey, 'mild');
-        debugPrint(
-            '   Found ${mildRecs.length} "mild" recommendation categories.');
-      } else {
-        debugPrint('\n❌ FAILED: Could not decode data for $diseaseKey.');
+        await _guideRepo.getRecommendations(diseaseKey, 'mild');
       }
     }
-
-    debugPrint('\n--------------------------------------\n');
   }
 
   Future<void> loadUserData() async {
@@ -280,7 +248,6 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> fetchData(int index) async {
-    debugPrint("TheobroTect: Fetching data for screen index $index...");
     switch (index) {
       case 0:
         await startBackgroundServices();
@@ -321,8 +288,6 @@ class HomeController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('📊 [HOME] Loading statistics${year != null ? ' for year $year' : ' (all-time)'}');
-
       // Check connectivity first
       final connectivity = await Connectivity().checkConnectivity();
       final hasConnection = connectivity.any((r) => r != ConnectivityResult.none);
@@ -330,7 +295,6 @@ class HomeController extends ChangeNotifier {
       if (!hasConnection) {
         _statsLoadState = StatisticsLoadState.offline;
         _statsError = 'No internet connection';
-        debugPrint('🌐 [HOME] Device is offline');
         return;
       }
 
@@ -339,7 +303,6 @@ class HomeController extends ChangeNotifier {
       if (!serverReachable) {
         _statsLoadState = StatisticsLoadState.serverUnreachable;
         _statsError = 'Server is currently unavailable';
-        debugPrint('🌐 [HOME] Server unreachable');
         return;
       }
 
@@ -348,14 +311,10 @@ class HomeController extends ChangeNotifier {
 
       if (_diseaseCounts!.isEmpty) {
         _statsLoadState = StatisticsLoadState.empty;
-        debugPrint('📊 [HOME] No scans found');
       } else {
         _statsLoadState = StatisticsLoadState.success;
-        debugPrint('✅ [HOME] Statistics loaded: ${_diseaseCounts!.totalScans} total scans');
       }
     } on DioException catch (e) {
-      debugPrint('❌ [HOME] API error: ${e.type} - ${e.message}');
-
       if (e.response?.statusCode == 401) {
         _statsLoadState = StatisticsLoadState.authError;
         _statsError = 'Authentication failed';
@@ -368,7 +327,6 @@ class HomeController extends ChangeNotifier {
         _statsError = e.message ?? 'Failed to load statistics';
       }
     } catch (e) {
-      debugPrint('❌ [HOME] Unexpected error: $e');
       _statsLoadState = StatisticsLoadState.error;
       _statsError = 'An unexpected error occurred';
     } finally {
@@ -379,7 +337,6 @@ class HomeController extends ChangeNotifier {
 
   /// Refresh statistics after sync completes
   Future<void> refreshStatisticsAfterSync() async {
-    debugPrint('🔄 [HOME] Refreshing statistics after sync');
     await loadStatistics(year: _selectedYear, forceRefresh: true);
   }
 

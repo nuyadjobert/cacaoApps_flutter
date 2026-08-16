@@ -10,6 +10,7 @@ import '../widgets/diagnosis_section.dart';
 import '../widgets/location_status_banner.dart';
 import '../widgets/treatment_plan_section.dart';
 import '../widgets/scan_result_bottom_bar.dart';
+import 'non_cacao_screen.dart';
 import 'scan_unsuccessful_screen.dart';
 
 class ScanResultScreen extends StatefulWidget {
@@ -45,11 +46,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     controller.init().then((_) {
       if (!mounted) return;
 
-      if (controller.error == "NON_CACAO" ||
-          controller.isNonCacao ||
-          "LOW_CONFIDENCE" == controller.error ||
-          controller.diseaseName == "unsupported_disease" ||
-          controller.hasInvalidSeverityMismatch) {
+      if (controller.isNonCacao) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation1, animation2) =>
+                const NonCacaoScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+        return;
+      }
+
+      if (controller.hasUnsuccessfulResult) {
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -117,9 +127,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       smsEnabled: false,
       isLoading: controller.isLoading,
     );
-    debugPrint('Controller diseaseKey: ${controller.diseaseKey}');
-    debugPrint('Controller severityKey: ${controller.severityKey}');
-    debugPrint('Controller rescanAfterDays: ${controller.rescanAfterDays}');
 
     if (!mounted) return;
     _showSaveSnackBar(ok);
@@ -183,7 +190,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       bottomNavigationBar: ListenableBuilder(
         listenable: controller,
         builder: (context, _) {
-          if (controller.isLoading || controller.error != null) {
+          if (controller.isLoading || controller.hasUnsuccessfulResult) {
             return const SizedBox.shrink();
           }
           return ScanResultBottomBar(
@@ -207,7 +214,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    final primaryTitle = controller.displayName[lang] ?? controller.diseaseName;
+    if (controller.isNonCacao || controller.hasUnsuccessfulResult) {
+      return const SizedBox.shrink();
+    }
+
+    final primaryTitle = controller.displayName[lang] ?? '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
