@@ -1,4 +1,4 @@
-package com.example.cacao_apps
+package com.theobrotect.app
 
 import io.flutter.embedding.android.FlutterActivity
 

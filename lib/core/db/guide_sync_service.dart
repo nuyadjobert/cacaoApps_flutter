@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import './cacao_guide_repository.dart';
+
 class GuideSyncService {
   final Dio dio;
   final CacaoGuideRepository guideRepository;
@@ -33,7 +34,7 @@ class GuideSyncService {
       } else {
         return false;
       }
-    } on DioException catch (e) {
+    } on DioException {
       final stillEmpty = await guideRepository.isDatabaseEmpty();
 
       if (stillEmpty) {
@@ -45,7 +46,7 @@ class GuideSyncService {
       }
 
       return false;
-    } catch (e) {
+    } catch (_) {
       final stillEmpty = await guideRepository.isDatabaseEmpty();
 
       if (stillEmpty) {

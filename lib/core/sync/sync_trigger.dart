@@ -16,28 +16,30 @@ class SyncTrigger {
   late final ScanSyncService _scanSync;
   late final QueueSyncService _queueSync;
   late final ServerReachabilityService _serverReachability;
-  
+
   final ScanRepository _scanRepository = ScanRepository();
   final SyncQueueRepository _syncQueueRepository = SyncQueueRepository();
 
   Function()? onSyncComplete;
 
   SyncTrigger({this.onSyncComplete}) {
-    _scanSync = ScanSyncService(dio: DioClient.dio, scanRepository: _scanRepository);
-    _queueSync = QueueSyncService(dio: DioClient.dio, queueRepository: _syncQueueRepository);
+    _scanSync =
+        ScanSyncService(dio: DioClient.dio, scanRepository: _scanRepository);
+    _queueSync = QueueSyncService(
+        dio: DioClient.dio, queueRepository: _syncQueueRepository);
     _serverReachability = ServerReachabilityService(dio: DioClient.dio);
   }
 
   void start() {
     _trySync();
 
-    _sub = Connectivity().onConnectivityChanged
+    _sub = Connectivity()
+        .onConnectivityChanged
         .where((results) => results.any((r) => r != ConnectivityResult.none))
-        .debounceTime(const Duration(seconds: 2)) 
+        .debounceTime(const Duration(seconds: 2))
         .listen((_) {
-
-          _trySync();
-        });
+      _trySync();
+    });
     _retryTimer = Timer.periodic(
       const Duration(minutes: 15),
       (_) => _trySync(),
@@ -67,10 +69,12 @@ class SyncTrigger {
         await _queueSync.syncPendingQueue();
       }
 
-      if (onSyncComplete != null && (hasPendingScans || pendingQueue.isNotEmpty)) {
+      if (onSyncComplete != null &&
+          (hasPendingScans || pendingQueue.isNotEmpty)) {
         onSyncComplete!();
       }
-    } catch (e) {
+    } catch (_) {
+      // Background synchronization is best-effort; forceSync reports failures.
     } finally {
       _running = false;
     }
@@ -108,7 +112,8 @@ class SyncTrigger {
       }
 
       // Call the callback after successful sync
-      if (onSyncComplete != null && (hasPendingScans || pendingQueue.isNotEmpty)) {
+      if (onSyncComplete != null &&
+          (hasPendingScans || pendingQueue.isNotEmpty)) {
         onSyncComplete!();
       }
 
