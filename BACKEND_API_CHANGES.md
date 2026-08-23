@@ -1,168 +1,28 @@
-# Backend API Changes Required
-
-## Disease Counts Endpoint - Yearly Filtering Support
-
-### Current Implementation
-```php
-Route::get('/user/disease-counts', [ScanResultController::class, 'myDiseaseCounts'])
-    ->name('myDiseaseCounts');
-```
-
-### Required Changes
-
-#### 1. Update Service Method `getUserDiseaseCounts`
-
-**Location:** `app/Services/ScanService.php` (or equivalent)
-
-**Current Code:**
-```php
-public function getUserDiseaseCounts(int $userId)
-{
-    $counts = ScanResult::where('user_id', $userId)
-        ->select(
-            'disease_key',
-            DB::raw('COUNT(*) as total')
-        )
-        ->groupBy('disease_key')
-        ->pluck('total', 'disease_key');
-
-    return [
-        'healthy' => $counts['healthy'] ?? 0,
-        'black_pod_disease' => $counts['black_pod_disease'] ?? 0,
-        'cacao_pod_borer' => $counts['cacao_pod_borer'] ?? 0,
-        'mealybug' => $counts['mealybug'] ?? 0,
-    ];
-}
-```
-
-**Updated Code:**
-```php
-public function getUserDiseaseCounts(int $userId, ?int $year = null)
-{
-    $query = ScanResult::where('user_id', $userId);
-
-    // Apply year filter if provided
-    if ($year !== null) {
-        $query->whereYear('scanned_at', $year);
-    }
-
-    $counts = $query
-        ->select(
-            'disease_key',
-            DB::raw('COUNT(*) as total')
-        )
-        ->groupBy('disease_key')
-        ->pluck('total', 'disease_key');
-
-    return [
-        'healthy' => $counts['healthy'] ?? 0,
-        'black_pod_disease' => $counts['black_pod_disease'] ?? 0,
-        'cacao_pod_borer' => $counts['cacao_pod_borer'] ?? 0,
-        'mealybug' => $counts['mealybug'] ?? 0,
-    ];
-}
-```
-
-#### 2. Update Controller Method `myDiseaseCounts`
-
-**Location:** `app/Http/Controllers/ScanResultController.php` (or equivalent)
-
-**Current Code:**
-```php
-public function myDiseaseCounts(Request $request)
-{
-    $userId = $request->user()->id;
-    $diseaseCounts = $this->scanService->getUserDiseaseCounts($userId);
-
-    return response()->json([
-        'status' => 'OK',
-        'data' => $diseaseCounts
-    ], 200);
-}
-```
-
-**Updated Code:**
-```php
-public function myDiseaseCounts(Request $request)
-{
-    // Validate optional year parameter
-    $validated = $request->validate([
-        'year' => 'nullable|integer|min:2000|max:' . (date('Y') + 1),
-    ]);
-
-    $userId = $request->user()->id;
-    $year = $validated['year'] ?? null;
-
-    $diseaseCounts = $this->scanService->getUserDiseaseCounts($userId, $year);
-
-    return response()->json([
-        'status' => 'OK',
-        'data' => $diseaseCounts
-    ], 200);
-}
-```
-
-### API Usage Examples
-
-#### Get All-Time Counts
-```http
-GET /api/theobrotect/scans/user/disease-counts
-Authorization: Bearer {token}
-```
-
-**Response:**
-```json
-{
-  "status": "OK",
-  "data": {
-    "healthy": 45,
-    "black_pod_disease": 12,
-    "cacao_pod_borer": 8,
-    "mealybug": 5
-  }
-}
-```
-
-#### Get Counts for Specific Year
-```http
-GET /api/theobrotect/scans/user/disease-counts?year=2026
-Authorization: Bearer {token}
-```
-
-**Response:**
-```json
-{
-  "status": "OK",
-  "data": {
-    "healthy": 10,
-    "black_pod_disease": 4,
-    "cacao_pod_borer": 2,
-    "mealybug": 3
-  }
-}
-```
-
-### Important Notes
-
-1. **Authentication:** The endpoint uses `auth:sanctum` middleware. User ID is obtained from `$request->user()->id`, never from client input.
-
-2. **Date Field:** The filter uses the `scanned_at` field. Ensure this field exists and is properly populated in the `scan_results` table.
-
-3. **Validation:** Year parameter is optional, must be an integer between 2000 and next year if provided.
-
-4. **Backward Compatibility:** If no year is provided, the endpoint returns all-time counts (existing behavior preserved).
-
-5. **Performance:** For users with many scans, consider adding an index on `(user_id, scanned_at)` in the `scan_results` table:
-   ```sql
-   CREATE INDEX idx_scan_results_user_year ON scan_results(user_id, scanned_at);
-   ```
-
-### Testing Checklist
-
-- [ ] Endpoint returns all-time counts when no year parameter is provided
-- [ ] Endpoint returns filtered counts when valid year is provided
-- [ ] Invalid year values return validation error
-- [ ] Authentication is required (401 for unauthenticated requests)
-- [ ] User can only see their own scan counts
-- [ ] Response structure matches expected format
-- [ ] Zero counts are properly returned when no scans exist for the period
+in the scan modules in the views folder in the location_picker_screen.dart If the application is offline how can we have still map even the local map speficically in this location round inside in this location lat long  [7.806560861082189, 125.63986102045375],
+    [7.7956762095560865, 125.63196459707926],
+    [7.794995909431882, 125.66320696782175],
+    [7.741929100320352, 125.64020434320918],
+    [7.743630063488939, 125.68655291518975],
+    [7.722537635330425, 125.67693987803823],
+    [7.68608165649672, 125.68385925522492],
+    [7.671187109483628, 125.70077199774289],
+    [7.680133924592561, 125.7221384442543],
+    [7.66464738677233, 125.72361706165712],
+    [7.6526771983407205, 125.74031302153712],
+    [7.652043473116281, 125.7484123382937],
+    [7.683939805531676, 125.76134282642398],
+    [7.682813265212966, 125.77782564636436],
+    [7.691332653669563, 125.78493031018593],
+    [7.7033721590568724, 125.77945971904207],
+    [7.70808359287765, 125.77164314928795],
+    [7.727444436605209, 125.76759349090968],
+    [7.741435502048624, 125.75246835983998],
+    [7.752139988193796, 125.73589958976596],
+    [7.763325284000295, 125.72782762483625],
+    [7.811671196718009, 125.72624964672997],
+    [7.827604881331258, 125.70919534486183],
+    [7.823215663004752, 125.70694976062417],
+    [7.830551043241702, 125.69462939311539],
+    [7.842360795049566, 125.66801254185408],
+    [7.823328174293252, 125.63906132053842],
+    [7.808920959985727, 125.64199646739989], and how can ensure that the user can still navigate in this map especially when there is no connection since we are working on offline approach how can we solve that way?
