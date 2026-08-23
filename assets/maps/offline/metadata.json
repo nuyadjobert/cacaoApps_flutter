@@ -1,0 +1,26 @@
+{
+  "source": "https://overpass-api.de/api/interpreter",
+  "source_type": "OpenStreetMap raw data via Overpass API",
+  "license": "ODbL 1.0",
+  "license_url": "https://www.openstreetmap.org/copyright",
+  "min_zoom": 12,
+  "max_zoom": 17,
+  "tile_buffer": 2,
+  "tile_format": "WebP 256x256 quality 82",
+  "tile_counts": {
+    "12": 47,
+    "13": 77,
+    "14": 135,
+    "15": 306,
+    "16": 829,
+    "17": 2554
+  },
+  "feature_counts": {
+    "ways": 15121,
+    "places": 182
+  },
+  "overpass_osm3s": {
+    "timestamp_osm_base": "2026-08-18T03:26:51Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  }
+}

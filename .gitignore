@@ -28,6 +28,9 @@ migrate_working_dir/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
+
+# Reproducible offline-map source cache (generated assets remain tracked).
+tool/offline_map/cache/
 .pub-cache/
 .pub/
 /build/

@@ -3,6 +3,8 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:cacao_apps/core/location/location_service.dart';
 
+import '../config/supported_area.dart';
+
 const double kLowAccuracyThreshold = 50.0;
 
 class LocationPickerController extends ChangeNotifier {
@@ -12,6 +14,7 @@ class LocationPickerController extends ChangeNotifier {
   String? _error;
 
   LatLng? _pickedLatLng;
+  LatLng? _detectedLatLng;
   double? _accuracy;
   String? _locationLabel;
   bool _isManuallyPicked = false;
@@ -20,6 +23,7 @@ class LocationPickerController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   LatLng? get pickedLatLng => _pickedLatLng;
+  LatLng? get detectedLatLng => _detectedLatLng;
   double? get accuracy => _accuracy;
   String? get locationLabel => _locationLabel;
   bool get isManuallyPicked => _isManuallyPicked;
@@ -41,9 +45,15 @@ class LocationPickerController extends ChangeNotifier {
         return;
       }
 
-      final lat = (loc['location_lat'] is num) ? (loc['location_lat'] as num).toDouble() : null;
-      final lng = (loc['location_lng'] is num) ? (loc['location_lng'] as num).toDouble() : null;
-      final acc = (loc['location_accuracy'] is num) ? (loc['location_accuracy'] as num).toDouble() : null;
+      final lat = (loc['location_lat'] is num)
+          ? (loc['location_lat'] as num).toDouble()
+          : null;
+      final lng = (loc['location_lng'] is num)
+          ? (loc['location_lng'] as num).toDouble()
+          : null;
+      final acc = (loc['location_accuracy'] is num)
+          ? (loc['location_accuracy'] as num).toDouble()
+          : null;
 
       if (lat == null || lng == null) {
         _needsManualPick = true;
@@ -53,10 +63,14 @@ class LocationPickerController extends ChangeNotifier {
       }
 
       _pickedLatLng = LatLng(lat, lng);
+      _detectedLatLng = _pickedLatLng;
       _accuracy = acc;
       _locationLabel = loc['location_label']?.toString();
 
-      if (acc != null && acc > kLowAccuracyThreshold) {
+      if (!SupportedArea.contains(_pickedLatLng!)) {
+        _error = 'Your GPS location is outside the supported area.';
+        _needsManualPick = true;
+      } else if (acc != null && acc > kLowAccuracyThreshold) {
         _needsManualPick = true;
       }
 
@@ -70,13 +84,22 @@ class LocationPickerController extends ChangeNotifier {
     }
   }
 
-  void confirmManualLocation(LatLng latlng, {String? label}) {
+  bool confirmManualLocation(LatLng latlng, {String? label}) {
+    if (!SupportedArea.contains(latlng)) {
+      _error = 'Select a location inside the supported boundary.';
+      _needsManualPick = true;
+      notifyListeners();
+      return false;
+    }
+
     _pickedLatLng = latlng;
     _locationLabel = label ?? 'Manually pinned';
     _isManuallyPicked = true;
     _needsManualPick = false;
     _accuracy = null;
+    _error = null;
     notifyListeners();
+    return true;
   }
 
   Map<String, dynamic>? toLocationMap() {
